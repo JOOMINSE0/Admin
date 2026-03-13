@@ -1,0 +1,61 @@
+.header {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.menuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-right: 8px;
+  color: #666;
+  border-radius: 4px;
+}
+
+.menuBtn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.hamburger {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.logo {
+  flex: 1;
+}
+
+.logoText {
+  font-weight: 700;
+  font-size: 18px;
+  color: #c00;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.userBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: #555;
+  border-radius: 4px;
+}
+
+.userBtn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
