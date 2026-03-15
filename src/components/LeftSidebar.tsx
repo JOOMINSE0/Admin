@@ -43,10 +43,7 @@ const menuData: MenuItem[] = [
   {
     id: 'order',
     label: '주문관리',
-    children: [
-      { path: '/order/status', label: '주문현황' },
-      { path: '/order/moisture', label: '수분현황' },
-    ],
+    children: [{ path: '/order/status', label: '주문현황' }],
   },
   {
     id: 'cs',
