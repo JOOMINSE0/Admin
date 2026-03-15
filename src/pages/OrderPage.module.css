@@ -43,6 +43,89 @@
   font-size: 16px;
 }
 
+/* Status bar (주문완료 → 결제완료 → 발송 준비중 → 발송 완료) */
+.statusBar {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.statusBarInner {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+}
+
+.statusBarItem {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  text-align: left;
+  min-width: 0;
+  transition: background 0.15s ease;
+}
+
+.statusBarItem:hover {
+  background: #f5f5f5;
+}
+
+.statusBarItemActive {
+  background: #ffe8e0 !important;
+}
+
+.statusBarIcon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.statusBarLabel {
+  flex: 1;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.statusBarCount {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #333;
+}
+
+.statusBarCountAlert {
+  color: #c00;
+  font-weight: 600;
+}
+
+.statusBarArrow {
+  flex-shrink: 0;
+  width: 24px;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e0e0e0'%3E%3Cpath d='M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'/%3E%3C/svg%3E") center/12px no-repeat;
+  opacity: 0.8;
+}
+
+.statusBarItemActive + .statusBarArrow {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffe8e0'%3E%3Cpath d='M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'/%3E%3C/svg%3E");
+}
+
 /* Tabs */
 .tabs {
   display: flex;

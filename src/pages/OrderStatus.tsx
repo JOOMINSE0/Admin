@@ -1,9 +1,34 @@
 import { useState } from 'react'
+import * as XLSX from 'xlsx'
 import CollapsibleSection from '../components/CollapsibleSection'
 import styles from './OrderPage.module.css'
 
 const breadcrumb = ['홈', '주문관리', '주문현황']
 const infoMessage = 'CRM 재고확인구간, 결제정보 미포함'
+
+type StatusKey = 'all' | 'order_complete' | 'payment_complete' | 'preparing' | 'shipped'
+const statusSteps: { key: StatusKey; label: string; icon: string; color: string }[] = [
+  { key: 'all', label: '전체', icon: '📌', color: '#607d8b' },
+  { key: 'order_complete', label: '주문완료', icon: '📋', color: '#5c9ead' },
+  { key: 'payment_complete', label: '결제완료', icon: '✓', color: '#4caf50' },
+  { key: 'preparing', label: '발송 준비중', icon: '📦', color: '#ff9800' },
+  { key: 'shipped', label: '발송 완료', icon: '🚚', color: '#e91e63' },
+]
+
+// 주문 상태: order_complete 3건, payment_complete 4건, preparing 3건, shipped 1건 = 11건
+const statusByOrderId: Record<number, Exclude<StatusKey, 'all'>> = {
+  1: 'shipped',
+  2: 'order_complete',
+  3: 'order_complete',
+  4: 'order_complete',
+  5: 'payment_complete',
+  6: 'payment_complete',
+  7: 'payment_complete',
+  8: 'payment_complete',
+  9: 'preparing',
+  10: 'preparing',
+  11: 'preparing',
+}
 
 const mockOrders = [
   {
@@ -48,10 +73,64 @@ function formatDate(d: Date) {
   return d.toISOString().slice(0, 10)
 }
 
+type OrderRow = (typeof mockOrders)[number]
+const EXCEL_HEADERS = [
+  '번호', '주문번호', '상품명', '약국', '주문일시', '고객명', '배송방식',
+  '주문금액', '배송비', '공급가', '부가세', '마일리지', '부분취소', '주문자', '최종결제금액',
+]
+
+function downloadOrderExcel(orders: OrderRow[]) {
+  const rows = orders.map((row, idx) => [
+    idx + 1,
+    row.orderNo,
+    row.productName,
+    row.pharmacy,
+    row.orderDate,
+    row.customerName,
+    row.deliveryMethod,
+    row.orderAmount,
+    row.deliveryFee,
+    row.supplyPrice,
+    row.tax,
+    row.mileage,
+    row.partialCancel,
+    row.orderer,
+    row.finalAmount,
+  ])
+  const data = [EXCEL_HEADERS, ...rows]
+  const ws = XLSX.utils.aoa_to_sheet(data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '주문내역')
+  const fileName = `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// 목데이터: 각 상태별 건수 (전체 11, 주문완료 3, 결제완료 4, 발송 준비중 3, 발송 완료 1)
+const mockStatusCounts: Record<StatusKey, number> = {
+  all: 11,
+  order_complete: 3,
+  payment_complete: 4,
+  preparing: 3,
+  shipped: 1,
+}
+
 export default function OrderStatus() {
   const [tab, setTab] = useState<'order' | 'bundle'>('order')
   const [dateFrom, setDateFrom] = useState('2026-03-06')
   const [dateTo, setDateTo] = useState('2026-03-13')
+  const [activeStatus, setActiveStatus] = useState<StatusKey>('all')
+
+  // 선택된 상태에 따라 주문 목록 필터링
+  const filteredOrders = activeStatus === 'all'
+    ? mockOrders
+    : mockOrders.filter((order) => statusByOrderId[order.id] === activeStatus)
 
   const setQuickDate = (type: 'today' | '1day' | '1week' | '1month') => {
     const today = new Date()
@@ -89,6 +168,32 @@ export default function OrderStatus() {
 
       <div className={styles.infoBar}>
         <span className={styles.infoIcon}>ℹ️</span> {infoMessage}
+      </div>
+
+      <div className={styles.statusBar}>
+        {statusSteps.map((step, index) => {
+          const isActive = activeStatus === step.key
+          const count = mockStatusCounts[step.key]
+          const isLast = index === statusSteps.length - 1
+          return (
+            <div key={step.key} className={styles.statusBarInner}>
+              <button
+                type="button"
+                className={`${styles.statusBarItem} ${isActive ? styles.statusBarItemActive : ''}`}
+                onClick={() => setActiveStatus(step.key)}
+              >
+                <span className={styles.statusBarIcon} style={{ background: step.color }}>
+                  {step.icon}
+                </span>
+                <span className={styles.statusBarLabel}>{step.label}</span>
+                <span className={`${styles.statusBarCount} ${count > 0 ? styles.statusBarCountAlert : ''}`}>
+                  {count}건
+                </span>
+              </button>
+              {!isLast && <span className={styles.statusBarArrow} aria-hidden />}
+            </div>
+          )
+        })}
       </div>
 
       <CollapsibleSection title="주문현황" defaultOpen={true}>
@@ -171,10 +276,6 @@ export default function OrderStatus() {
             </div>
           </div>
           <div className={styles.filterBottomRow}>
-            <div className={styles.filterItem}>
-              <label className={styles.filterLabel}>주문상태</label>
-              <select className={styles.select}><option>전체</option></select>
-            </div>
             <div className={styles.filterSearchRow}>
               <label className={styles.filterLabel}>검색어</label>
               <div className={styles.searchGroup}>
@@ -209,8 +310,10 @@ export default function OrderStatus() {
         <div className={styles.tableHeader}>
           <h2 className={styles.tableTitle}>📋 주문내역</h2>
           <div className={styles.tableActions}>
-            <span className={styles.totalCount}>전체 {mockOrders.length}건</span>
-            <button type="button" className={styles.btnExcel}>엑셀 다운로드</button>
+            <span className={styles.totalCount}>전체 {filteredOrders.length}건</span>
+            <button type="button" className={styles.btnExcel} onClick={() => downloadOrderExcel(filteredOrders)}>
+              엑셀 다운로드
+            </button>
           </div>
         </div>
         <div className={styles.tableWrap}>
@@ -236,10 +339,10 @@ export default function OrderStatus() {
               </tr>
             </thead>
             <tbody>
-              {mockOrders.map((row, idx) => (
+              {filteredOrders.map((row, idx) => (
                 <tr key={row.id} className={idx === 0 ? styles.rowHighlight : ''}>
                   <td><input type="checkbox" /></td>
-                  <td>{row.no}</td>
+                  <td>{idx + 1}</td>
                   <td>{row.orderNo}</td>
                   <td>{row.productName}</td>
                   <td>{row.pharmacy}</td>
