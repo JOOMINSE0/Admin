@@ -125,6 +125,66 @@
   margin-bottom: 16px;
 }
 
+.filterBlock {
+  margin-bottom: 16px;
+}
+
+.filterTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.filterSearchRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.filterSearchRow .filterLabel {
+  min-width: 60px;
+}
+
+.searchGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.searchTypeLabel {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+}
+
+.filterRow3 {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+
+.filterRowSingle {
+  margin-bottom: 12px;
+}
+
+.filterBottomRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-bottom: 4px;
+}
+
+.filterBottomRow .filterSearchRow {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 280px;
+}
+
 .filterItem {
   display: flex;
   align-items: center;
@@ -150,16 +210,27 @@
   gap: 8px;
 }
 
-.btnSecondary,
-.btnOrange {
+.btnSecondary {
   padding: 8px 16px;
   font-size: 14px;
   color: #333;
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.btnSecondary:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.btnOrange {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #fff;
   background: #f0ad4e;
   border-radius: 4px;
 }
 
-.btnSecondary:hover,
 .btnOrange:hover {
   background: #ec971f;
   color: #fff;

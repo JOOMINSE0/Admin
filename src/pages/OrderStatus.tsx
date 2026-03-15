@@ -44,10 +44,34 @@ const mockOrders = [
   })),
 ]
 
+function formatDate(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
 export default function OrderStatus() {
   const [tab, setTab] = useState<'order' | 'bundle'>('order')
   const [dateFrom, setDateFrom] = useState('2026-03-06')
   const [dateTo, setDateTo] = useState('2026-03-13')
+
+  const setQuickDate = (type: 'today' | '1day' | '1week' | '1month') => {
+    const today = new Date()
+    const toStr = formatDate(today)
+    let from: Date
+    if (type === 'today') {
+      from = today
+    } else if (type === '1day') {
+      from = new Date(today)
+      from.setDate(from.getDate() - 1)
+    } else if (type === '1week') {
+      from = new Date(today)
+      from.setDate(from.getDate() - 6)
+    } else {
+      from = new Date(today)
+      from.setMonth(from.getMonth() - 1)
+    }
+    setDateFrom(formatDate(from))
+    setDateTo(toStr)
+  }
 
   return (
     <div className={styles.page}>
@@ -67,7 +91,7 @@ export default function OrderStatus() {
         <span className={styles.infoIcon}>ℹ️</span> {infoMessage}
       </div>
 
-      <CollapsibleSection title="Q 주문선택" defaultOpen={true}>
+      <CollapsibleSection title="주문현황" defaultOpen={true}>
         <div className={styles.tabs}>
           <button
             type="button"
@@ -100,41 +124,69 @@ export default function OrderStatus() {
             className={styles.input}
           />
           <div className={styles.quickDates}>
-            <button type="button" className={styles.quickBtn}>오늘</button>
-            <button type="button" className={styles.quickBtn}>1일</button>
-            <button type="button" className={styles.quickBtn}>1주</button>
-            <button type="button" className={styles.quickBtn}>1개월</button>
+            <button type="button" className={styles.quickBtn} onClick={() => setQuickDate('today')}>오늘</button>
+            <button type="button" className={styles.quickBtn} onClick={() => setQuickDate('1day')}>1일</button>
+            <button type="button" className={styles.quickBtn} onClick={() => setQuickDate('1week')}>1주</button>
+            <button type="button" className={styles.quickBtn} onClick={() => setQuickDate('1month')}>1개월</button>
           </div>
         </div>
-        <div className={styles.filterGrid}>
-          <div className={styles.filterItem}>
-            <label className={styles.filterLabel}>공급사</label>
-            <select className={styles.select}><option>전체</option></select>
+        <div className={styles.filterBlock}>
+          <div className={styles.filterTopRow}>
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>공급사</label>
+              <select className={styles.select}><option>전체</option></select>
+            </div>
+            <button type="button" className={styles.btnOrange}>가나다순</button>
           </div>
-          <div className={styles.filterItem}>
-            <label className={styles.filterLabel}>상급사</label>
-            <select className={styles.select}><option>전체</option></select>
-          </div>
-          <div className={styles.filterItem}>
+          <div className={styles.filterSearchRow}>
             <label className={styles.filterLabel}>검색어</label>
-            <select className={styles.select}><option>고객명</option></select>
-            <input type="text" className={styles.input} placeholder="검색" />
+            <div className={styles.searchGroup}>
+              <span className={styles.searchTypeLabel}>검색타입</span>
+              <select className={styles.select}><option>고객명</option></select>
+              <input type="text" className={styles.input} placeholder="" />
+            </div>
+            <div className={styles.searchGroup}>
+              <span className={styles.filterLabel}>검색어</span>
+              <input type="text" className={styles.input} placeholder="" />
+            </div>
           </div>
-          <div className={styles.filterItem}>
-            <label className={styles.filterLabel}>배송수량</label>
-            <select className={styles.select}><option>전체</option></select>
+          <div className={styles.filterRow3}>
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>예치금</label>
+              <select className={styles.select}><option>전체</option></select>
+            </div>
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>회원유형</label>
+              <select className={styles.select}><option>전체</option></select>
+            </div>
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>선결제구분</label>
+              <select className={styles.select}><option>전체</option></select>
+            </div>
           </div>
-          <div className={styles.filterItem}>
-            <label className={styles.filterLabel}>회원수정</label>
-            <select className={styles.select}><option>전체</option></select>
+          <div className={styles.filterRowSingle}>
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>플러스전용관</label>
+              <select className={styles.select}><option>전체</option></select>
+            </div>
           </div>
-          <div className={styles.filterItem}>
-            <label className={styles.filterLabel}>주문상태</label>
-            <select className={styles.select}><option>전체</option></select>
-          </div>
-          <div className={styles.filterItem}>
-            <label className={styles.filterLabel}>취소</label>
-            <select className={styles.select}><option>전체</option><option>부분</option></select>
+          <div className={styles.filterBottomRow}>
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>주문상태</label>
+              <select className={styles.select}><option>전체</option></select>
+            </div>
+            <div className={styles.filterSearchRow}>
+              <label className={styles.filterLabel}>검색어</label>
+              <div className={styles.searchGroup}>
+                <span className={styles.searchTypeLabel}>검색타입</span>
+                <select className={styles.select}><option>약국명</option></select>
+                <input type="text" className={styles.input} placeholder="" />
+              </div>
+              <div className={styles.searchGroup}>
+                <span className={styles.filterLabel}>검색어</span>
+                <input type="text" className={styles.input} placeholder="" />
+              </div>
+            </div>
           </div>
         </div>
         <div className={styles.filterActions}>
