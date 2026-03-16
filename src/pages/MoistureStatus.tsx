@@ -149,7 +149,7 @@ export default function MoistureStatus() {
           <span>배송비: 0 량</span>
           <span>취소: 0 량</span>
           <span>결제금액: 3,379,009 량</span>
-          <span>가드부분취소: 0 량</span>
+          <span>카드 부분 취소: 0 량</span>
           <span>최종결제금액: 3,379,009 량</span>
         </div>
       </CollapsibleSection>

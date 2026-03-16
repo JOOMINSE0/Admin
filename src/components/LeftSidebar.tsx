@@ -61,9 +61,6 @@ const menuData: MenuItem[] = [
     children: [{ path: '/policy/terms', label: '약관관리' }],
   },
   { id: 'cti', label: 'CTI' },
-  { id: 'newvip', label: 'NEWVIP' },
-  { id: 'memo', label: '미설정메모' },
-  { id: 'stats', label: '통계결과' },
 ]
 
 type LeftSidebarProps = {
