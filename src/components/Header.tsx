@@ -12,7 +12,7 @@ export default function Header({ onUserClick, onMenuClick }: HeaderProps) {
         <span className={styles.hamburger}>≡</span>
       </button>
       <div className={styles.logo}>
-        <span className={styles.logoText}>The SHOP</span>
+        <img src="/logo.png" alt="The SHOP" className={styles.logoImg} />
       </div>
       <div className={styles.right}>
         <button

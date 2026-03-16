@@ -36,6 +36,36 @@ const supplierOptions = [
   '더샵플러스(백제약품)',
   '더샵플러스(복산나이스)',
   '도체오',
+  '동암메디팜',
+  '동인제약',
+  '동인제약(부산)',
+  '로하스메디',
+  '로하스메디(도매)',
+  '메디상사',
+  '미드팜',
+  '백광의약품',
+  '백제약품 광주',
+  '백제약품 대전',
+  '백제약품 동부',
+  '백제약품 부산',
+  '백제약품 분당',
+  '백제약품 신도림',
+  '백제약품 영남',
+  '백제약품 영등포(평택)',
+  '백제약품 원주',
+  '백제약품 전주',
+  '백제약품 제주',
+  '보덕메디팜',
+  '복산나이스 경남',
+  '복산나이스 동부',
+  '복산나이스 부산',
+  '복산나이스 서울',
+  '복산나이스 평택',
+  '서울약사신협',
+  '서울약업',
+  '서울지오팜',
+  '서울지오팜(도매)',
+  '서진팜',
 ]
 
 const searchTypeOptions = ['약국명', '주문번호', '회원 아이디', '고객명', '상품명']
@@ -50,19 +80,13 @@ const statusSteps: { key: StatusKey; label: string; icon: string; color: string 
   { key: 'order_cancel', label: '주문 취소 현황', icon: '', color: '#9e9e9e' },
 ]
 
-// 주문 상태: order_complete 3건, payment_complete 4건, preparing 3건, shipped 1건 = 11건
-const statusByOrderId: Record<number, Exclude<StatusKey, 'all'>> = {
-  1: 'shipped',
-  2: 'order_complete',
-  3: 'order_complete',
-  4: 'order_complete',
-  5: 'payment_complete',
-  6: 'payment_complete',
-  7: 'payment_complete',
-  8: 'payment_complete',
-  9: 'preparing',
-  10: 'preparing',
-  11: 'preparing',
+// 상태 버튼 키 → 주문내역 orderStatus 문자열 매칭
+const STATUS_KEY_TO_ORDER_STATUS: Record<Exclude<StatusKey, 'all'>, string> = {
+  order_complete: '주문 완료',
+  payment_complete: '결제완료',
+  preparing: '발송 준비중',
+  shipped: '발송 완료',
+  order_cancel: '주문 취소',
 }
 
 const mockOrders = [
@@ -82,30 +106,33 @@ const mockOrders = [
     finalAmount: 45467,
     paymentMethod: '신한카드BATCH결제',
     orderDateTime: '2026-03-16 09:44:58',
-    orderStatus: '발송완료',
+    orderStatus: '발송 완료',
     memo: 'N',
     memberId: 'test01',
   },
-  ...Array.from({ length: 10 }, (_, i) => ({
-    id: i + 2,
-    orderNo: `P0104141687${8 + i}`,
-    supplier: ['대표제약', '다원약품', '대웅제약'][i % 3],
-    productName: `상품${i + 1}`,
-    pharmacyName: ['성산약국', '원엔젤약국', '메디칼수약국'][i % 3],
-    customerName: '고객' + (i + 1),
-    memberPaymentMethod: '선결제',
-    orderAmount: 15000 + i * 1000,
-    salesAmount: 15000 + i * 1000,
-    supplyAmount: 13000 + i * 900,
-    tax: 2000 + i * 100,
-    paymentAmount: 15000 + i * 1000,
-    finalAmount: 15000 + i * 1000,
-    paymentMethod: '세메세데',
-    orderDateTime: '2026-03-16 10:00:00',
-    orderStatus: ['결제완료', '발송완료', '발송 준비중'][i % 3],
-    memo: 'N',
-    memberId: `user${i + 2}`,
-  })),
+  ...Array.from({ length: 10 }, (_, i) => {
+    const statuses: string[] = ['주문 완료', '주문 완료', '주문 완료', '결제완료', '결제완료', '결제완료', '결제완료', '발송 준비중', '발송 준비중', '발송 준비중']
+    return {
+      id: i + 2,
+      orderNo: `P0104141687${8 + i}`,
+      supplier: ['대표제약', '다원약품', '대웅제약'][i % 3],
+      productName: `상품${i + 1}`,
+      pharmacyName: ['성산약국', '원엔젤약국', '메디칼수약국'][i % 3],
+      customerName: '고객' + (i + 1),
+      memberPaymentMethod: '선결제',
+      orderAmount: 15000 + i * 1000,
+      salesAmount: 15000 + i * 1000,
+      supplyAmount: 13000 + i * 900,
+      tax: 2000 + i * 100,
+      paymentAmount: 15000 + i * 1000,
+      finalAmount: 15000 + i * 1000,
+      paymentMethod: '세메세데',
+      orderDateTime: '2026-03-16 10:00:00',
+      orderStatus: statuses[i],
+      memo: 'N',
+      memberId: `user${i + 2}`,
+    }
+  }),
 ]
 
 function formatDate(d: Date) {
@@ -118,6 +145,7 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
   const [datePart] = row.orderDateTime.split(' ')
   return {
     orderNo: row.orderNo,
+    sapOrderNo: row.orderNo.replace(/^P/, 'SAP') || '-',
     orderDateTime: row.orderDateTime,
     orderStatus: row.orderStatus,
     orderStatusDate: row.orderDateTime,
@@ -126,7 +154,8 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
     paymentMethod: row.paymentMethod,
     products: [
       {
-        supplierName: `${row.supplier} (도매) [배송예정일] ${datePart}`,
+        supplierName: `${row.supplier} (도매)`,
+        expectedDeliveryDate: datePart,
         category: `전문의약품 ${1003432349 + row.id}`,
         productSpec: `${row.productName}/ea/ea`,
         manufacturer: `${row.supplier}_제조사`,
@@ -153,7 +182,6 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
         paymentAmount: `${row.paymentAmount.toLocaleString()}원`,
         earnedMileage: '0원',
         expectedDeposit: '0원',
-        orderStatus: row.orderStatus,
       },
     ],
     customer: {
@@ -164,6 +192,10 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
       address: '(25258) 강원특별자치도 횡성군 갑천면 갑천로 9-4 테스트',
     },
     vendorMessage: `${row.supplier} (도매) 메세지`,
+    adminMemos: [
+      { id: '1', authorName: '관리자1', content: '배송 일정 확인 부탁드립니다.' },
+      { id: '2', authorName: '운영팀김철수', content: '확인했습니다. 내일 발송 예정입니다.' },
+    ],
   }
 }
 
@@ -209,14 +241,21 @@ function downloadOrderExcel(orders: OrderRow[]) {
   URL.revokeObjectURL(url)
 }
 
-// 목데이터: 각 상태별 건수 (전체 11, 주문 완료 3, 결제완료 4, 발송 준비중 3, 발송 완료 1, 주문 취소 현황 0)
-const mockStatusCounts: Record<StatusKey, number> = {
-  all: 11,
-  order_complete: 3,
-  payment_complete: 4,
-  preparing: 3,
-  shipped: 1,
-  order_cancel: 0,
+// 상태별 건수: 주문내역 orderStatus와 매칭해 실제 건수 사용
+function getStatusCounts(orders: OrderRow[]): Record<StatusKey, number> {
+  const counts: Record<StatusKey, number> = {
+    all: orders.length,
+    order_complete: 0,
+    payment_complete: 0,
+    preparing: 0,
+    shipped: 0,
+    order_cancel: 0,
+  }
+  orders.forEach((o) => {
+    const key = (Object.entries(STATUS_KEY_TO_ORDER_STATUS).find(([, v]) => v === o.orderStatus)?.[0] as Exclude<StatusKey, 'all'>) ?? null
+    if (key && key in counts) counts[key]++
+  })
+  return counts
 }
 
 export default function OrderStatus() {
@@ -246,10 +285,12 @@ export default function OrderStatus() {
     setPlusExclusiveY(false)
   }
 
-  // 선택된 상태에 따라 주문 목록 필터링
+  // 선택된 상태에 따라 주문 목록 필터링 (주문내역 orderStatus와 매칭)
   const filteredOrders = activeStatus === 'all'
     ? mockOrders
-    : mockOrders.filter((order) => statusByOrderId[order.id] === activeStatus)
+    : mockOrders.filter((order) => order.orderStatus === STATUS_KEY_TO_ORDER_STATUS[activeStatus])
+
+  const statusCounts = getStatusCounts(mockOrders)
 
   const PAGE_SIZE = 10
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
@@ -323,7 +364,7 @@ export default function OrderStatus() {
       <div className={styles.statusBar}>
         {statusSteps.map((step, index) => {
           const isActive = activeStatus === step.key
-          const count = mockStatusCounts[step.key]
+          const count = statusCounts[step.key]
           const isLast = index === statusSteps.length - 1
           return (
             <div key={step.key} className={styles.statusBarInner}>
@@ -591,7 +632,7 @@ export default function OrderStatus() {
         )}
       </div>
 
-      <OrderDetailModal detail={detailOpen} onClose={() => setDetailOpen(null)} />
+      <OrderDetailModal detail={detailOpen} onClose={() => setDetailOpen(null)} currentUserName="관리자1" />
     </div>
   )
 }

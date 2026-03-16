@@ -73,23 +73,25 @@
   align-items: center;
   gap: 10px;
   padding: 14px 16px;
-  background: #fff;
+  background: transparent;
   border: none;
+  border-bottom: 3px solid transparent;
   cursor: pointer;
   font-size: 14px;
   color: #333;
   text-align: left;
   min-width: 0;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .statusBarItem:hover {
-  background: #f8f9fb;
+  color: #333;
 }
 
 .statusBarItemActive {
-  background: #ffebe5 !important;
   color: #FD490E;
+  font-weight: 600;
+  border-bottom-color: #FD490E;
 }
 
 .statusBarIcon {
@@ -134,7 +136,7 @@
 }
 
 .statusBarItemActive + .statusBarArrow {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffebe5'%3E%3Cpath d='M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e0e0e0'%3E%3Cpath d='M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'/%3E%3C/svg%3E");
 }
 
 /* Tabs */
@@ -494,6 +496,7 @@
 .table td {
   color: #555;
   background: #fff;
+  white-space: nowrap;
 }
 
 .table tbody tr:hover {

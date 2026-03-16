@@ -1,7 +1,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,41 +11,45 @@
 
 .modal {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 16px;
   max-width: 900px;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e8e8e8;
   background: #fff;
+  flex-shrink: 0;
 }
 
 .title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 18px;
   font-weight: 700;
-  color: #333;
+  color: #1a1a1a;
 }
 
 .titleIcon {
-  width: 28px;
-  height: 28px;
-  background: #FD490E;
+  width: 32px;
+  height: 32px;
+  background: #e3f2fd;
+  border: 1px solid #1976d2;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #1976d2;
   font-size: 14px;
 }
 
@@ -56,12 +60,12 @@
 }
 
 .btnPrint {
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: 13px;
   color: #fff;
   background: #1976d2;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -70,12 +74,12 @@
 
 .btnPartialCancel,
 .btnOrderCancel {
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: 13px;
   color: #fff;
   background: #e53935;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -83,12 +87,12 @@
 }
 
 .btnShip {
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: 13px;
   color: #fff;
-  background: #43a047;
+  background: #1976d2;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -96,13 +100,14 @@
 }
 
 .btnClose {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #FD490E;
-  border: none;
-  color: #fff;
+  padding: 8px 12px;
+  min-width: 36px;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  color: #444;
   font-size: 18px;
+  font-weight: 400;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -110,8 +115,16 @@
   line-height: 1;
 }
 
+.btnClose:hover {
+  background: #f5f5f5;
+  border-color: #b0b0b0;
+}
+
 .body {
-  padding: 20px;
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .infoGrid {
@@ -139,37 +152,99 @@
   cursor: pointer;
 }
 
-.sectionTitle {
+.sectionHeader {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background 0.2s;
+}
+
+.sectionHeader:hover {
+  background: #f8f9fb;
+}
+
+.sectionTitle {
   font-size: 14px;
   font-weight: 700;
+  color: #1a1a1a;
+}
+
+.sectionArrow {
+  font-size: 20px;
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+.sectionArrowOpen {
+  transform: rotate(90deg);
+}
+
+.sectionBody {
+  padding-top: 16px;
+}
+
+.summaryTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.summaryTable th,
+.summaryTable td {
+  padding: 10px 14px;
+  border: 1px solid #e8e8e8;
+  text-align: left;
+}
+
+.summaryTable th {
+  background: #f8f9fb;
+  font-weight: 600;
+  color: #555;
+  width: 140px;
+}
+
+.summaryTable td {
   color: #333;
-  margin-bottom: 12px;
+  background: #fff;
+}
+
+.summaryTable td.orderNoLink {
+  color: #FD490E;
+  font-weight: 600;
 }
 
 .sectionTitleIcon {
   width: 24px;
   height: 24px;
-  background: #FD490E;
+  background: #e3f2fd;
+  border: 1px solid #1976d2;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #1976d2;
   font-size: 12px;
 }
 
 .sectionTitleRect {
   width: 24px;
   height: 24px;
-  background: #FD490E;
-  border-radius: 4px;
+  background: #e3f2fd;
+  border: 1px solid #1976d2;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #1976d2;
   font-size: 12px;
 }
 
@@ -186,54 +261,51 @@
 
 .detailTable th,
 .detailTable td {
-  padding: 10px 12px;
-  border: 1px solid #e0e0e0;
+  padding: 10px 14px;
+  border: 1px solid #e8e8e8;
   text-align: left;
 }
 
 .detailTable th {
-  background: #f5f5f5;
+  background: #f8f9fb;
   font-weight: 600;
   color: #555;
 }
 
 .detailTable td {
   color: #333;
+  background: #fff;
 }
 
-.customerSection,
-.messageSection {
-  background: #fafafa;
-  border: 1px solid #eee;
-  border-radius: 6px;
+.contentSection {
+  background: #fff;
   padding: 16px;
   margin-bottom: 16px;
 }
 
 .customerTable {
   width: 100%;
+  border-collapse: collapse;
   font-size: 13px;
 }
 
-.customerTable tr {
-  border-bottom: 1px solid #eee;
-}
-
-.customerTable tr:last-child {
-  border-bottom: none;
-}
-
-.customerTable th {
-  width: 140px;
-  padding: 8px 0;
-  font-weight: 500;
-  color: #666;
+.customerTable th,
+.customerTable td {
+  padding: 10px 14px;
+  border: 1px solid #e8e8e8;
   text-align: left;
   vertical-align: top;
 }
 
+.customerTable th {
+  width: 160px;
+  background: #f8f9fb;
+  font-weight: 600;
+  color: #555;
+}
+
 .customerTable td {
-  padding: 8px 0;
+  background: #fff;
   color: #333;
 }
 
@@ -241,4 +313,127 @@
   font-size: 13px;
   color: #333;
   padding: 8px 0;
+}
+
+.memoDesc {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.memoList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+}
+
+.memoItem {
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.memoItem:last-of-type {
+  border-bottom: none;
+}
+
+.memoMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.memoAuthor {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.memoActions {
+  display: flex;
+  gap: 6px;
+}
+
+.btnMemoEdit,
+.btnMemoSave,
+.btnMemoCancel {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #555;
+}
+
+.btnMemoEdit:hover,
+.btnMemoSave:hover {
+  background: #f0f0f0;
+}
+
+.btnMemoDelete {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  color: #c62828;
+}
+
+.btnMemoDelete:hover {
+  background: #ffebee;
+}
+
+.memoContent {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.memoEditWrap {
+  margin-top: 4px;
+}
+
+.memoTextarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.memoTextarea:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+.memoEditActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.memoAddWrap {
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.btnMemoAdd {
+  padding: 8px 16px;
+  font-size: 13px;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.btnMemoAdd:hover {
+  background: #1565c0;
 }

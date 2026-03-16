@@ -4,7 +4,27 @@
   background: #fff;
   border-right: 1px solid #e0e0e0;
   overflow-y: auto;
+  overflow-x: hidden;
   transition: width 0.2s, min-width 0.2s;
+  scrollbar-width: thin;
+  scrollbar-color: #b0b0b0 transparent;
+}
+
+.aside::-webkit-scrollbar {
+  width: 5px;
+}
+
+.aside::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.aside::-webkit-scrollbar-thumb {
+  background: #b0b0b0;
+  border-radius: 10px;
+}
+
+.aside::-webkit-scrollbar-thumb:hover {
+  background: #909090;
 }
 
 .aside.collapsed {
@@ -33,14 +53,28 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 10px 16px;
   color: #555;
   font-size: 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
 }
 
 .menuRow:hover {
   background: #f8f8f8;
   color: #333;
+}
+
+.arrowWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  color: #999;
 }
 
 .menuRow.active {
@@ -102,6 +136,52 @@
 }
 
 .subLink.subActive {
+  color: #c00;
+  font-weight: 500;
+  background: #fff;
+}
+
+.subItemWithNested {
+  list-style: none;
+}
+
+.subRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  cursor: pointer;
+}
+
+.subRow .arrow {
+  color: #999;
+  flex-shrink: 0;
+}
+
+.subRow .subLink {
+  flex: 1;
+  min-width: 0;
+}
+
+.nestedMenu {
+  list-style: none;
+  padding-left: 0;
+  margin: 0 0 0 8px;
+  border-left: 2px solid #e8e8e8;
+}
+
+.nestedLink {
+  display: block;
+  padding: 6px 16px 6px 28px;
+  color: #666;
+  font-size: 13px;
+}
+
+.nestedLink:hover {
+  color: #333;
+  background: #f0f0f0;
+}
+
+.nestedLink.subActive {
   color: #c00;
   font-weight: 500;
   background: #fff;
