@@ -462,7 +462,17 @@ export default function OrderStatus() {
           <h2 className={styles.tableTitle}>주문내역</h2>
           <div className={styles.tableActions}>
             <span className={styles.totalCount}>전체 {filteredOrders.length}건</span>
-            <button type="button" className={styles.btnExcel} onClick={() => downloadOrderExcel(filteredOrders)}>
+            <button
+              type="button"
+              className={styles.btnExcel}
+              onClick={() => {
+                const toExport =
+                  filteredOrders.some((o) => selectedIds.has(o.id))
+                    ? filteredOrders.filter((o) => selectedIds.has(o.id))
+                    : filteredOrders
+                downloadOrderExcel(toExport)
+              }}
+            >
               엑셀 다운로드
             </button>
           </div>
