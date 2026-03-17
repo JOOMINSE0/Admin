@@ -479,25 +479,31 @@ export default function OrderStatus() {
     paymentDateTime?: string
     shippedCompleteDateTime?: string
   }
-  if (activeStatus === 'shipped') {
-    const from = dateFrom
-    const to = dateTo
-    const inRange = (row: OrderRow) => {
-      const r = row as RowWithShippedDates
-      let d: string
-      if (shippedDateBasis === 'order') {
-        d = row.orderDateTime.slice(0, 10)
-      } else if (shippedDateBasis === 'payment') {
-        d = (r.paymentDateTime ?? row.orderDateTime).slice(0, 10)
-      } else {
-        d = (r.shippedCompleteDateTime ?? row.orderDateTime).slice(0, 10)
-      }
-      return d >= from && d <= to
+  const shippedInRange = (row: OrderRow) => {
+    const r = row as RowWithShippedDates
+    let d: string
+    if (shippedDateBasis === 'order') {
+      d = row.orderDateTime.slice(0, 10)
+    } else if (shippedDateBasis === 'payment') {
+      d = (r.paymentDateTime ?? row.orderDateTime).slice(0, 10)
+    } else {
+      d = (r.shippedCompleteDateTime ?? row.orderDateTime).slice(0, 10)
     }
-    filteredOrders = filteredOrders.filter(inRange)
+    return d >= dateFrom && d <= dateTo
+  }
+  if (activeStatus === 'shipped') {
+    filteredOrders = filteredOrders.filter(shippedInRange)
   }
 
   const statusCounts = getStatusCounts(ordersWithOverrides)
+  // 발송완료 탭 건수: 기간 필터 적용 후 건수로 표시 (기본 기간에 0건이면 0건으로 표시)
+  const shippedCountInRange = ordersWithOverrides
+    .filter((o) => o.orderStatus === STATUS_KEY_TO_ORDER_STATUS.shipped)
+    .filter(shippedInRange).length
+  const statusCountsForDisplay: Record<StatusKey, number> = {
+    ...statusCounts,
+    shipped: shippedCountInRange,
+  }
 
   const PAGE_SIZE = 10
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
@@ -571,7 +577,7 @@ export default function OrderStatus() {
       <div className={styles.statusBar}>
         {statusSteps.map((step, index) => {
           const isActive = activeStatus === step.key
-          const count = statusCounts[step.key]
+          const count = statusCountsForDisplay[step.key]
           const isLast = index === statusSteps.length - 1
           return (
             <div key={step.key} className={styles.statusBarInner}>
