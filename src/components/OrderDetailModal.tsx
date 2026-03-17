@@ -550,7 +550,6 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                       <table className={styles.detailTable}>
                         <thead>
                           <tr>
-                            <th>출하 구분</th>
                             <th>공급사</th>
                             <th>구분</th>
                             <th>상품명/규격/단위</th>
@@ -570,14 +569,27 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                               const bi = order[resolved(b)] ?? 2
                               return ai - bi
                             })
-                            .map((p, i) => (
+                            .map((p, i) => {
+                              const resolvedType = p.shipmentType ?? getShipmentTypeFromProductText(p.productSpec)
+                              const isFactory = resolvedType === '제약공장 출하'
+                              const isRegion = resolvedType === '지역공장 출하'
+                              const badgeLabel = isFactory ? '공장' : isRegion ? '지역' : null
+                              return (
                               <tr key={`${supplierName}-${i}`}>
-                                <td className={styles.shipmentBadgeCell}>
-                                  {renderShipmentBadgeFromType(
-                                    p.shipmentType ?? getShipmentTypeFromProductText(p.productSpec)
-                                  )}
+                                <td>
+                                  <div className={styles.supplierCellInner}>
+                                    <span>{supplierName ?? '-'}</span>
+                                    {badgeLabel != null && (
+                                      <span
+                                        className={
+                                          isFactory ? styles.shipmentPillFactory : styles.shipmentPillRegion
+                                        }
+                                      >
+                                        {badgeLabel}
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
-                                <td>{supplierName ?? '-'}</td>
                                 <td>{p.category ?? '-'}</td>
                                 <td className={styles.cellAllowWrap}>
                                   <div className={styles.productNameCell}>{p.productSpec ?? '-'}</div>
@@ -590,7 +602,8 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                                 <td>{costDiscount}</td>
                                 <td>{p.subtotal ?? '-'}</td>
                               </tr>
-                            ))}
+                            )
+                            })}
                         </tbody>
                       </table>
                     </div>

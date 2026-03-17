@@ -678,6 +678,34 @@
   vertical-align: middle;
 }
 
+.supplierCellInner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.shipmentPillFactory,
+.shipmentPillRegion {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.shipmentPillFactory {
+  color: #7f8ffc;
+  border: 1px solid #7f8ffc;
+}
+
+.shipmentPillRegion {
+  color: #e03f0c;
+  border: 1px solid #e03f0c;
+}
+
 .detailTable td {
   color: #333;
   background: #fff;
