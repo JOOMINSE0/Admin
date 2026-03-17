@@ -70,6 +70,32 @@ const supplierOptions = [
 
 const searchTypeOptions = ['약국명', '주문번호', '회원 아이디', '고객명', '상품명']
 
+/** 발송준비중 배송지역 필터 (시도 → 구군 → 읍면동) */
+const PLACEHOLDER_SIDO = '-시도-'
+const PLACEHOLDER_GUGUN = '-구군-'
+const PLACEHOLDER_EUP = '-읍면동-'
+const REGION_TREE: Record<string, Record<string, string[]>> = {
+  [PLACEHOLDER_SIDO]: { [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP] },
+  서울특별시: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    강남구: [PLACEHOLDER_EUP, '역삼동', '논현동', '대치동'],
+    강북구: [PLACEHOLDER_EUP, '미아동', '수유동'],
+    송파구: [PLACEHOLDER_EUP, '잠실동', '문정동'],
+  },
+  경기도: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    '수원시 영통구': [PLACEHOLDER_EUP, '영통동', '매탄동'],
+    '성남시 분당구': [PLACEHOLDER_EUP, '정자동', '야탑동'],
+    '고양시 덕양구': [PLACEHOLDER_EUP, '행신동', '화정동'],
+  },
+  부산광역시: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    해운대구: [PLACEHOLDER_EUP, '우동', '재송동'],
+    부산진구: [PLACEHOLDER_EUP, '부전동', '연지동'],
+  },
+}
+const SIDO_OPTIONS = [PLACEHOLDER_SIDO, ...Object.keys(REGION_TREE).filter((k) => k !== PLACEHOLDER_SIDO)]
+
 type StatusKey = 'all' | 'order_complete' | 'payment_complete' | 'preparing' | 'shipped' | 'order_cancel'
 const statusSteps: { key: StatusKey; label: string; icon: string; color: string }[] = [
   { key: 'all', label: '전체', icon: '', color: '#607d8b' },
@@ -88,6 +114,17 @@ const STATUS_KEY_TO_ORDER_STATUS: Record<Exclude<StatusKey, 'all'>, string> = {
   shipped: '발송 완료',
   order_cancel: '주문 취소',
 }
+
+/** 전체 현황에서만 사용: 주문 상태값 드롭다운 옵션 (value는 orderStatus 매칭용, ''=전체) */
+const ALL_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: '전체' },
+  { value: '주문 완료', label: '주문 완료' },
+  { value: '결제완료', label: '결제 완료' },
+  { value: '발송 준비중', label: '발송 준비중' },
+  { value: '발송 완료', label: '발송 완료' },
+  { value: '주문 취소', label: '주문 취소' },
+  { value: '부분 취소', label: '부분 취소' },
+]
 
 // 발송완료 하드코딩 주문 (상세 팝업에서 이미지 기준 데이터 표시)
 const SHIPPED_ORDER_NO = 'P01041161391'
@@ -109,6 +146,8 @@ const mockOrders = [
     finalAmount: 0,
     paymentMethod: '예치금',
     orderDateTime: '2026-02-06 14:49:30',
+    paymentDateTime: '2026-02-06 16:20:00',
+    shippedCompleteDateTime: '2026-02-10 11:30:00',
     orderStatus: '발송 완료',
     memo: '',
     memberId: 'grpharm',
@@ -129,12 +168,21 @@ const mockOrders = [
     finalAmount: 45467,
     paymentMethod: '신한카드BATCH결제',
     orderDateTime: '2026-03-16 09:44:58',
+    paymentDateTime: '2026-03-16 09:45:00',
+    shippedCompleteDateTime: '2026-03-16 14:00:00',
     orderStatus: '발송 완료',
     memo: 'N',
     memberId: 'test01',
   },
   ...Array.from({ length: 10 }, (_, i) => {
     const statuses: string[] = ['주문 완료', '주문 완료', '주문 완료', '결제완료', '결제완료', '결제완료', '결제완료', '발송 준비중', '발송 준비중', '발송 준비중']
+    const regions = [
+      { deliverySido: '서울특별시' as const, deliveryGugun: '강남구', deliveryEup: '역삼동' },
+      { deliverySido: '경기도' as const, deliveryGugun: '수원시 영통구', deliveryEup: '영통동' },
+      { deliverySido: '부산광역시' as const, deliveryGugun: '해운대구', deliveryEup: '우동' },
+    ]
+    const r = regions[i % 3]
+    const isPreparing = statuses[i] === '발송 준비중'
     return {
       id: i + 2,
       orderNo: `P0104141687${8 + i}`,
@@ -154,6 +202,7 @@ const mockOrders = [
       orderStatus: statuses[i],
       memo: 'N',
       memberId: `user${i + 2}`,
+      ...(isPreparing ? { deliverySido: r.deliverySido, deliveryGugun: r.deliveryGugun, deliveryEup: r.deliveryEup } : {}),
     }
   }),
 ]
@@ -349,6 +398,13 @@ export default function OrderStatus() {
   const [searchType2, setSearchType2] = useState('약국명')
   const [searchKeyword2, setSearchKeyword2] = useState('')
   const [deposit, setDeposit] = useState('전체')
+  const [deliverySido, setDeliverySido] = useState(PLACEHOLDER_SIDO)
+  const [deliveryGugun, setDeliveryGugun] = useState(PLACEHOLDER_GUGUN)
+  const [deliveryEup, setDeliveryEup] = useState(PLACEHOLDER_EUP)
+  /** 발송완료 현황: 기간 기준 (기본 주문일자) */
+  const [shippedDateBasis, setShippedDateBasis] = useState<'order' | 'payment' | 'shipped'>('order')
+  /** 전체 현황에서만: 주문 상태값 필터 ('')=전체 */
+  const [allStatusFilter, setAllStatusFilter] = useState('')
   const initialDateFrom = '2026-03-06'
   const initialDateTo = '2026-03-13'
 
@@ -360,12 +416,66 @@ export default function OrderStatus() {
     setSearchKeyword2('')
     setDeposit('전체')
     setPlusExclusiveY(false)
+    setDeliverySido(PLACEHOLDER_SIDO)
+    setDeliveryGugun(PLACEHOLDER_GUGUN)
+    setDeliveryEup(PLACEHOLDER_EUP)
+    setShippedDateBasis('order')
+    setAllStatusFilter('')
   }
 
+  const gugunOptions =
+    deliverySido && REGION_TREE[deliverySido]
+      ? [PLACEHOLDER_GUGUN, ...Object.keys(REGION_TREE[deliverySido]).filter((k) => k !== PLACEHOLDER_GUGUN)]
+      : [PLACEHOLDER_GUGUN]
+  const eupOptions =
+    deliverySido && deliveryGugun && REGION_TREE[deliverySido]?.[deliveryGugun]
+      ? REGION_TREE[deliverySido][deliveryGugun]
+      : [PLACEHOLDER_EUP]
+
   // 선택된 상태에 따라 주문 목록 필터링 (주문내역 orderStatus와 매칭)
-  const filteredOrders = activeStatus === 'all'
-    ? mockOrders
-    : mockOrders.filter((order) => order.orderStatus === STATUS_KEY_TO_ORDER_STATUS[activeStatus])
+  let filteredOrders =
+    activeStatus === 'all'
+      ? mockOrders
+      : mockOrders.filter((order) => order.orderStatus === STATUS_KEY_TO_ORDER_STATUS[activeStatus])
+
+  if (activeStatus === 'all' && allStatusFilter !== '') {
+    filteredOrders = filteredOrders.filter((order) => order.orderStatus === allStatusFilter)
+  }
+
+  if (activeStatus === 'preparing') {
+    type RowWithRegion = OrderRow & { deliverySido?: string; deliveryGugun?: string; deliveryEup?: string }
+    if (deliverySido !== PLACEHOLDER_SIDO) {
+      filteredOrders = filteredOrders.filter((o) => (o as RowWithRegion).deliverySido === deliverySido)
+    }
+    if (deliveryGugun !== PLACEHOLDER_GUGUN) {
+      filteredOrders = filteredOrders.filter((o) => (o as RowWithRegion).deliveryGugun === deliveryGugun)
+    }
+    if (deliveryEup !== PLACEHOLDER_EUP) {
+      filteredOrders = filteredOrders.filter((o) => (o as RowWithRegion).deliveryEup === deliveryEup)
+    }
+  }
+
+  type RowWithShippedDates = OrderRow & {
+    paymentDateTime?: string
+    shippedCompleteDateTime?: string
+  }
+  if (activeStatus === 'shipped') {
+    const from = dateFrom
+    const to = dateTo
+    const inRange = (row: OrderRow) => {
+      const r = row as RowWithShippedDates
+      let d: string
+      if (shippedDateBasis === 'order') {
+        d = row.orderDateTime.slice(0, 10)
+      } else if (shippedDateBasis === 'payment') {
+        d = (r.paymentDateTime ?? row.orderDateTime).slice(0, 10)
+      } else {
+        d = (r.shippedCompleteDateTime ?? row.orderDateTime).slice(0, 10)
+      }
+      return d >= from && d <= to
+    }
+    filteredOrders = filteredOrders.filter(inRange)
+  }
 
   const statusCounts = getStatusCounts(mockOrders)
 
@@ -376,7 +486,7 @@ export default function OrderStatus() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeStatus])
+  }, [activeStatus, shippedDateBasis, dateFrom, dateTo, deliverySido, deliveryGugun, deliveryEup, allStatusFilter])
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages >= 1) setCurrentPage(1)
@@ -484,7 +594,22 @@ export default function OrderStatus() {
           </button>
         </div>
         <div className={styles.filterRow}>
-          <label className={styles.filterLabel}>주문일자</label>
+          {activeStatus === 'shipped' ? (
+            <select
+              className={styles.select}
+              value={shippedDateBasis}
+              onChange={(e) =>
+                setShippedDateBasis(e.target.value as 'order' | 'payment' | 'shipped')
+              }
+              aria-label="발송완료 기간 기준"
+            >
+              <option value="order">주문일자</option>
+              <option value="payment">결제일자</option>
+              <option value="shipped">발송완료 일자</option>
+            </select>
+          ) : (
+            <label className={styles.filterLabel}>주문일자</label>
+          )}
           <input
             type="date"
             value={dateFrom}
@@ -505,6 +630,53 @@ export default function OrderStatus() {
             <button type="button" className={styles.quickBtn} onClick={() => setQuickDate('1month')}>1개월</button>
           </div>
         </div>
+        {activeStatus === 'preparing' && (
+          <div className={styles.filterRow}>
+            <label className={styles.filterLabel}>배송지역</label>
+            <select
+              className={styles.select}
+              value={deliverySido}
+              onChange={(e) => {
+                const v = e.target.value
+                setDeliverySido(v)
+                setDeliveryGugun(PLACEHOLDER_GUGUN)
+                setDeliveryEup(PLACEHOLDER_EUP)
+              }}
+            >
+              {SIDO_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.select}
+              value={deliveryGugun}
+              onChange={(e) => {
+                const v = e.target.value
+                setDeliveryGugun(v)
+                setDeliveryEup(PLACEHOLDER_EUP)
+              }}
+            >
+              {gugunOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.select}
+              value={deliveryEup}
+              onChange={(e) => setDeliveryEup(e.target.value)}
+            >
+              {eupOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className={styles.filterBlock}>
           <div className={styles.filterTopRow}>
             <div className={styles.filterItem}>
@@ -555,6 +727,22 @@ export default function OrderStatus() {
                 </select>
                 <input type="text" className={styles.input} placeholder="" value={searchKeyword2} onChange={(e) => setSearchKeyword2(e.target.value)} />
               </div>
+              {activeStatus === 'all' && (
+                <>
+                  <label className={styles.filterLabel}>주문 상태</label>
+                  <select
+                    className={styles.select}
+                    value={allStatusFilter}
+                    onChange={(e) => setAllStatusFilter(e.target.value)}
+                  >
+                    {ALL_STATUS_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value || 'all'} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
             <div className={styles.filterActions}>
               <button type="button" className={styles.btnSecondary} onClick={resetAllFilters}>검색 초기화</button>

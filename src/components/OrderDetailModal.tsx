@@ -53,12 +53,33 @@ type OrderDetailModalProps = {
   currentUserName?: string
 }
 
+type PartialCancelRecord = {
+  id: string
+  supplierName: string
+  productSpec: string
+  manufacturer: string
+  sellingPrice: string
+  orderQty: string
+  cancelReturnQty: string
+  depositAccum: string
+  mileageAccum: string
+  cardCancelAmount: string
+}
+
+type PartialCancelRowInput = { accumType: string; reason: string; cancelQty: string; accumAmount: string }
+
+const ACCUM_TYPE_OPTIONS = ['선택', '부분취소', '판매가조정', '낱알반품', '배송비'] as const
+const PARTIAL_CANCEL_REASON_OPTIONS = ['선택', '재고부족', '고객요청'] as const
+
 export default function OrderDetailModal({ detail, onClose, currentUserName = '관리자1' }: OrderDetailModalProps) {
   const [openSuppliers, setOpenSuppliers] = useState<Set<string>>(new Set())
   const [memos, setMemos] = useState<{ id: string; authorName: string; content: string }[]>([])
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
   const [newMemoContent, setNewMemoContent] = useState('')
+  const [showPartialCancelForm, setShowPartialCancelForm] = useState(false)
+  const [partialCancelRecords, setPartialCancelRecords] = useState<PartialCancelRecord[]>([])
+  const [partialCancelInputs, setPartialCancelInputs] = useState<Record<number, PartialCancelRowInput>>({})
 
   useEffect(() => {
     setMemos(detail?.adminMemos ?? [])
@@ -110,6 +131,60 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
     setNewMemoContent('')
   }
 
+  const openPartialCancelForm = () => {
+    setPartialCancelInputs({})
+    setShowPartialCancelForm(true)
+  }
+
+  const closePartialCancelForm = () => {
+    setShowPartialCancelForm(false)
+    setPartialCancelInputs({})
+  }
+
+  const setPartialCancelInput = (index: number, field: keyof PartialCancelRowInput, value: string) => {
+    setPartialCancelInputs((prev) => ({
+      ...prev,
+      [index]: {
+        accumType: prev[index]?.accumType ?? '선택',
+        reason: prev[index]?.reason ?? '',
+        cancelQty: prev[index]?.cancelQty ?? '',
+        accumAmount: prev[index]?.accumAmount ?? '',
+        [field]: value,
+      },
+    }))
+  }
+
+  const savePartialCancel = () => {
+    if (!detail) return
+    const newRecords: PartialCancelRecord[] = []
+    detail.products.forEach((p, index) => {
+      const row = partialCancelInputs[index]
+      if (!row) return
+      const cancelQty = row.cancelQty.trim()
+      const accumAmount = row.accumAmount.trim()
+      const reason = row.reason.trim()
+      if (!cancelQty && !accumAmount && (!reason || reason === '선택')) return
+      const cancelNum = parseInt(cancelQty, 10) || 0
+      const accumNum = parseInt(String(accumAmount).replace(/[,\s원]/g, ''), 10) || 0
+      newRecords.push({
+        id: `pc-${detail.orderNo}-${Date.now()}-${index}`,
+        supplierName: p.supplierName,
+        productSpec: p.productSpec,
+        manufacturer: p.manufacturer,
+        sellingPrice: p.sellingPrice,
+        orderQty: p.orderQty,
+        cancelReturnQty: `${cancelNum} 개`,
+        depositAccum: `${accumNum.toLocaleString()} 원`,
+        mileageAccum: '0 원',
+        cardCancelAmount: '0 원',
+      })
+    })
+    if (newRecords.length > 0) {
+      setPartialCancelRecords((prev) => [...prev, ...newRecords])
+    }
+    closePartialCancelForm()
+  }
+
   if (!detail) return null
 
   const status = detail.orderStatus
@@ -129,7 +204,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
           </h2>
           <div className={styles.actions}>
             <button type="button" className={styles.btnPrint}>프린트하기</button>
-            <button type="button" className={styles.btnPartialCancel}>부분취소</button>
+            <button type="button" className={styles.btnPartialCancel} onClick={openPartialCancelForm}>부분취소</button>
             {(detail.orderStatus === '주문 완료' || detail.orderStatus === '결제완료') && (
               <button type="button" className={styles.btnOrderCancel}>주문취소</button>
             )}
@@ -143,6 +218,99 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
         </div>
 
         <div className={styles.body}>
+          {showPartialCancelForm && (
+            <div className={styles.partialCancelForm}>
+              <div className={styles.partialCancelGuidance}>
+                <ul>
+                  <li>* [부분취소]는 발송완료전인 상품에 대해서 예치금을 지급할 수 있습니다. 해당상품의 취소 수량을 입력후에 &apos;추가&apos; 버튼을 클릭해 주세요.</li>
+                  <li>* [낱알반품][판매가조정]은 발송완료후의 상품에 대해서 예치금을 지급할 수 있습니다. 해당상품의 적립금액을 입력후에 &apos;추가&apos; 버튼을 클릭해 주세요.</li>
+                  <li>* 단, 적립금액은 취소가능수량 * 주문단가를 초과할 수 없습니다. [판매가조정]은 주문수량으로 나눈 값이 소수점이하 가격으로 입력이 불가능합니다.</li>
+                  <li>* [낱알반품]을 했을 경우, 해당 상품은 반품이 불가능하며, 반품이 안된 상품에 한해서 낱알반품을 받을 수 있습니다.</li>
+                  <li>* [판매가조정]은 반품, 낱알반품이 발생하지 않은 경우에만 판매가조정이 가능합니다.</li>
+                  <li>* 배송비에 대한 적립은 배송비가 발생한 주문에 대해서 가능합니다.</li>
+                </ul>
+              </div>
+              <div className={styles.tableWrap}>
+                <table className={styles.partialCancelTable}>
+                  <thead>
+                    <tr>
+                      <th>선택</th>
+                      <th>주문번호</th>
+                      <th>공급처</th>
+                      <th>자체상품번호</th>
+                      <th>상품명</th>
+                      <th>주문단가</th>
+                      <th>주문</th>
+                      <th>가능</th>
+                      <th>적립구분</th>
+                      <th>부분취소사유</th>
+                      <th>취소</th>
+                      <th>적립금액</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.products.map((p, index) => (
+                      <tr key={`pc-row-${index}`}>
+                        <td><input type="checkbox" defaultChecked /></td>
+                        <td>{detail.orderNo}</td>
+                        <td>{p.supplierName}</td>
+                        <td>{1003432349 + index}</td>
+                        <td>{p.productSpec}</td>
+                        <td>{p.sellingPrice}</td>
+                        <td>{p.orderQty}</td>
+                        <td>40</td>
+                        <td>
+                          <select
+                            className={styles.partialCancelSelect}
+                            value={partialCancelInputs[index]?.accumType ?? '선택'}
+                            onChange={(e) => setPartialCancelInput(index, 'accumType', e.target.value)}
+                          >
+                            {ACCUM_TYPE_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            className={styles.partialCancelSelect}
+                            value={partialCancelInputs[index]?.reason ?? '선택'}
+                            onChange={(e) => setPartialCancelInput(index, 'reason', e.target.value)}
+                          >
+                            {PARTIAL_CANCEL_REASON_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            className={styles.partialCancelInput}
+                            value={partialCancelInputs[index]?.cancelQty ?? ''}
+                            onChange={(e) => setPartialCancelInput(index, 'cancelQty', e.target.value)}
+                            placeholder="0"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            className={styles.partialCancelInput}
+                            value={partialCancelInputs[index]?.accumAmount ?? ''}
+                            onChange={(e) => setPartialCancelInput(index, 'accumAmount', e.target.value)}
+                            placeholder="0"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className={styles.partialCancelActions}>
+                <button type="button" className={styles.btnPartialCancelSubmit} onClick={savePartialCancel}>저장</button>
+                <button type="button" className={styles.btnPartialCancelCancel} onClick={closePartialCancelForm}>취소</button>
+              </div>
+            </div>
+          )}
+
           <div className={styles.contentSection}>
             <div className={styles.sectionTitleBar}>
               <span className={styles.sectionTitle}>상세주문정보</span>
@@ -174,6 +342,20 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                 </tr>
               </tbody>
             </table>
+
+            {(() => {
+              const totalCostDiscount = (detail.supplierSummary ?? []).reduce((sum, s) => {
+                const v = parseInt(String(s.costDiscount || '0').replace(/[원,\s]/g, ''), 10)
+                return sum + (Number.isNaN(v) ? 0 : v)
+              }, 0)
+              const orderAmount = detail.totalOrderAmount
+              const totalPayment = orderAmount - totalCostDiscount
+              return (
+                <div className={styles.paymentCallout}>
+                  주문금액({orderAmount.toLocaleString()}원) - 비용할인({totalCostDiscount.toLocaleString()}원) = 총결제금액 {totalPayment.toLocaleString()}원
+                </div>
+              )
+            })()}
 
             {Object.entries(
               detail.products.reduce<Record<string, typeof detail.products>>((acc, p) => {
@@ -230,7 +412,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                             <tr key={`${supplierName}-${i}`}>
                               <td>{supplierName ?? '-'}</td>
                               <td>{p.category ?? '-'}</td>
-                              <td>
+                              <td className={styles.cellAllowWrap}>
                                 <div className={styles.productNameCell}>{p.productSpec ?? '-'}</div>
                                 {(p.manufacturer ?? '').trim() && (
                                   <div className={styles.productManufacturer}>{p.manufacturer}</div>
@@ -349,6 +531,60 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
               </div>
             </div>
           </div>
+
+          {partialCancelRecords.length > 0 && (
+            <div className={styles.contentSection}>
+              <div className={styles.sectionTitleBar}>
+                <span className={styles.sectionTitleIconPartial} aria-hidden />
+                <span className={styles.sectionTitle}>부분취소 내역</span>
+              </div>
+              <div className={styles.sectionBody}>
+                <div className={styles.tableWrap}>
+                  <table className={styles.detailTable}>
+                    <thead>
+                      <tr>
+                        <th>공급사명</th>
+                        <th>상품명/규격/단위</th>
+                        <th>제조사</th>
+                        <th>판매가</th>
+                        <th>주문수량</th>
+                        <th>취소/반품 수량</th>
+                        <th>예치금 적립금액</th>
+                        <th>마일리지 적립금액</th>
+                        <th>카드취소액</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {partialCancelRecords.map((r) => (
+                        <tr key={r.id}>
+                          <td>{r.supplierName}</td>
+                          <td>{r.productSpec}</td>
+                          <td>{r.manufacturer}</td>
+                          <td>{r.sellingPrice}</td>
+                          <td>{r.orderQty}</td>
+                          <td>{r.cancelReturnQty}</td>
+                          <td>{r.depositAccum}</td>
+                          <td>{r.mileageAccum}</td>
+                          <td>{r.cardCancelAmount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {(() => {
+                  const totalDeposit = partialCancelRecords.reduce((s, r) => s + parseInt(String(r.depositAccum).replace(/[,\s원]/g, ''), 10), 0)
+                  const totalMileage = partialCancelRecords.reduce((s, r) => s + parseInt(String(r.mileageAccum).replace(/[,\s원]/g, ''), 10), 0)
+                  const totalCard = partialCancelRecords.reduce((s, r) => s + parseInt(String(r.cardCancelAmount).replace(/[,\s원]/g, ''), 10), 0)
+                  const totalAccum = totalDeposit + totalMileage + totalCard
+                  return (
+                    <div className={styles.partialCancelSummary}>
+                      총적립금액 {totalAccum.toLocaleString()}원 (총예치금적립 {totalDeposit.toLocaleString()}원, 회수택배비사용 0원, 총마일리지적립 {totalMileage.toLocaleString()}원, 총카드취소액 {totalCard.toLocaleString()}원)
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
