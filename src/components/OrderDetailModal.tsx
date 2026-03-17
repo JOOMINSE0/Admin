@@ -53,10 +53,8 @@ type OrderDetailModalProps = {
   currentUserName?: string
 }
 
-type SectionId = 'detail' | 'customer' | 'message' | 'adminMemo'
-
 export default function OrderDetailModal({ detail, onClose, currentUserName = '관리자1' }: OrderDetailModalProps) {
-  const [openSections, setOpenSections] = useState<Set<SectionId>>(new Set())
+  const [openSuppliers, setOpenSuppliers] = useState<Set<string>>(new Set())
   const [memos, setMemos] = useState<{ id: string; authorName: string; content: string }[]>([])
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
@@ -66,13 +64,14 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
     setMemos(detail?.adminMemos ?? [])
     setEditingMemoId(null)
     setNewMemoContent('')
-  }, [detail?.orderNo, detail?.adminMemos])
+    setOpenSuppliers(new Set())
+  }, [detail?.orderNo, detail?.adminMemos, detail?.products])
 
-  const toggleSection = (id: SectionId) => {
-    setOpenSections((prev) => {
+  const toggleSupplier = (name: string) => {
+    setOpenSuppliers((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
       return next
     })
   }
@@ -131,7 +130,9 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
           <div className={styles.actions}>
             <button type="button" className={styles.btnPrint}>프린트하기</button>
             <button type="button" className={styles.btnPartialCancel}>부분취소</button>
-            <button type="button" className={styles.btnOrderCancel}>주문취소</button>
+            {(detail.orderStatus === '주문 완료' || detail.orderStatus === '결제완료') && (
+              <button type="button" className={styles.btnOrderCancel}>주문취소</button>
+            )}
             {statusActionButton && (
               <button type="button" className={statusActionButton.className}>
                 {statusActionButton.label}
@@ -143,16 +144,9 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
 
         <div className={styles.body}>
           <div className={styles.contentSection}>
-            <button
-              type="button"
-              className={styles.sectionHeader}
-              onClick={() => toggleSection('detail')}
-              aria-expanded={openSections.has('detail')}
-            >
+            <div className={styles.sectionTitleBar}>
               <span className={styles.sectionTitle}>상세주문정보</span>
-              <span className={`${styles.sectionArrow} ${openSections.has('detail') ? styles.sectionArrowOpen : ''}`}>›</span>
-            </button>
-            {openSections.has('detail') && (
+            </div>
             <div className={styles.sectionBody}>
             <table className={styles.summaryTable}>
               <tbody>
@@ -164,9 +158,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                 </tr>
                 <tr>
                   <th>SAP주문번호</th>
-                  <td>{detail.sapOrderNo}</td>
-                  <th></th>
-                  <td></td>
+                  <td colSpan={3} className={styles.sapOrderNoCell}>{detail.sapOrderNo}</td>
                 </tr>
                 <tr>
                   <th>주문일시</th>
@@ -180,106 +172,90 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                   <th>결제방식</th>
                   <td>{detail.paymentMethod}</td>
                 </tr>
-                <tr>
-                  <th>공급사명</th>
-                  <td>{detail.products[0]?.supplierName ?? '-'}</td>
-                  <th>배송 예정일</th>
-                  <td>{detail.products[0]?.expectedDeliveryDate ?? '-'}</td>
-                </tr>
               </tbody>
             </table>
 
-            <div className={styles.tableWrap}>
-            <table className={styles.detailTable}>
-              <thead>
-                <tr>
-                  <th>구분</th>
-                  <th>상품명/규격/단위</th>
-                  <th>제조사</th>
-                  <th>판매가</th>
-                  <th>주문수량</th>
-                  <th>소계금액</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.products.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.category}</td>
-                    <td>{p.productSpec}</td>
-                    <td>{p.manufacturer}</td>
-                    <td>{p.sellingPrice}</td>
-                    <td>{p.orderQty}</td>
-                    <td>{p.subtotal}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className={styles.tableWrap}>
-            <table className={styles.detailTable}>
-              <thead>
-                <tr>
-                  <th>공급사</th>
-                  <th>주문합계금액</th>
-                  <th>OTC수금할인금액</th>
-                  <th>비용할인</th>
-                  <th>사용마일리지</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.supplierSummary.map((s, i) => (
-                  <tr key={i}>
-                    <td>{s.supplier}</td>
-                    <td>{s.totalAmount}</td>
-                    <td>{s.otcDiscount}</td>
-                    <td>{s.costDiscount}</td>
-                    <td>{s.mileageUsed}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className={styles.tableWrap}>
-            <table className={styles.detailTable}>
-              <thead>
-                <tr>
-                  <th>마이너스잔고사용액</th>
-                  <th>공급사쿠폰</th>
-                  <th>결제금액</th>
-                  <th>적립마일리지</th>
-                  <th>적립예정예치금</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.paymentSummary.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.minusBalance}</td>
-                    <td>{p.supplierCoupon}</td>
-                    <td>{p.paymentAmount}</td>
-                    <td>{p.earnedMileage}</td>
-                    <td>{p.expectedDeposit}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            {Object.entries(
+              detail.products.reduce<Record<string, typeof detail.products>>((acc, p) => {
+                if (!acc[p.supplierName]) acc[p.supplierName] = []
+                acc[p.supplierName].push(p)
+                return acc
+              }, {})
+            ).map(([supplierName, products]) => {
+              const isOpen = openSuppliers.has(supplierName)
+              const costDiscount =
+                detail.supplierSummary?.find((s) => s.supplier === supplierName)?.costDiscount ?? '-'
+              const expectedDelivery = products[0]?.expectedDeliveryDate ?? '-'
+              return (
+                <div key={supplierName} className={styles.supplierBlock}>
+                  <div className={styles.supplierRow}>
+                    <button
+                      type="button"
+                      className={styles.supplierHeader}
+                      onClick={() => toggleSupplier(supplierName)}
+                      aria-expanded={isOpen}
+                    >
+                      <span className={styles.supplierName}>{supplierName}</span>
+                      <span
+                        className={`${styles.supplierArrow} ${
+                          isOpen ? styles.supplierArrowOpen : ''
+                        }`}
+                      >
+                        ›
+                      </span>
+                    </button>
+                    <div className={styles.supplierShippingCol}>
+                      <span className={styles.supplierShippingLabel}>배송 정보</span>
+                      <div className={styles.supplierShippingBody}>
+                        <span>예정일 {expectedDelivery}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {isOpen && (
+                    <div className={styles.tableWrap}>
+                      <table className={styles.detailTable}>
+                        <thead>
+                          <tr>
+                            <th>공급사</th>
+                            <th>구분</th>
+                            <th>상품명/규격/단위</th>
+                            <th>판매가</th>
+                            <th>주문수량</th>
+                            <th>비용할인</th>
+                            <th>소계금액</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {products.map((p, i) => (
+                            <tr key={`${supplierName}-${i}`}>
+                              <td>{supplierName ?? '-'}</td>
+                              <td>{p.category ?? '-'}</td>
+                              <td>
+                                <div className={styles.productNameCell}>{p.productSpec ?? '-'}</div>
+                                {(p.manufacturer ?? '').trim() && (
+                                  <div className={styles.productManufacturer}>{p.manufacturer}</div>
+                                )}
+                              </td>
+                              <td>{p.sellingPrice ?? '-'}</td>
+                              <td>{p.orderQty ?? '-'}</td>
+                              <td>{costDiscount}</td>
+                              <td>{p.subtotal ?? '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
             </div>
-            )}
           </div>
 
           <div className={styles.contentSection}>
-            <button
-              type="button"
-              className={styles.sectionHeader}
-              onClick={() => toggleSection('customer')}
-              aria-expanded={openSections.has('customer')}
-            >
+            <div className={styles.sectionTitleBar}>
               <span className={styles.sectionTitle}>주문 고객정보</span>
-              <span className={`${styles.sectionArrow} ${openSections.has('customer') ? styles.sectionArrowOpen : ''}`}>›</span>
-            </button>
-            {openSections.has('customer') && (
+            </div>
             <div className={styles.sectionBody}>
             <table className={styles.customerTable}>
               <tbody>
@@ -306,20 +282,12 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
               </tbody>
             </table>
             </div>
-            )}
           </div>
 
           <div className={styles.contentSection}>
-            <button
-              type="button"
-              className={styles.sectionHeader}
-              onClick={() => toggleSection('message')}
-              aria-expanded={openSections.has('message')}
-            >
+            <div className={styles.sectionTitleBar}>
               <span className={styles.sectionTitle}>업체 전달 메세지</span>
-              <span className={`${styles.sectionArrow} ${openSections.has('message') ? styles.sectionArrowOpen : ''}`}>›</span>
-            </button>
-            {openSections.has('message') && (
+            </div>
             <div className={styles.sectionBody}>
             <table className={styles.customerTable}>
               <tbody>
@@ -330,20 +298,12 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
               </tbody>
             </table>
             </div>
-            )}
           </div>
 
           <div className={styles.contentSection}>
-            <button
-              type="button"
-              className={styles.sectionHeader}
-              onClick={() => toggleSection('adminMemo')}
-              aria-expanded={openSections.has('adminMemo')}
-            >
+            <div className={styles.sectionTitleBar}>
               <span className={styles.sectionTitle}>관리자 메모</span>
-              <span className={`${styles.sectionArrow} ${openSections.has('adminMemo') ? styles.sectionArrowOpen : ''}`}>›</span>
-            </button>
-            {openSections.has('adminMemo') && (
+            </div>
             <div className={styles.sectionBody}>
               <p className={styles.memoDesc}>운영팀과 소통을 위한 메모입니다. 작성한 메모만 수정·삭제할 수 있습니다.</p>
               <ul className={styles.memoList}>
@@ -388,7 +348,6 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                 <button type="button" className={styles.btnMemoAdd} onClick={handleAddMemo}>메모 등록</button>
               </div>
             </div>
-            )}
           </div>
         </div>
       </div>

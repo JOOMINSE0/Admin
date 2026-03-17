@@ -90,7 +90,7 @@
   padding: 8px 16px;
   font-size: 13px;
   color: #fff;
-  background: #1976d2;
+  background: #43a047;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -102,8 +102,8 @@
 .btnClose {
   padding: 8px 12px;
   min-width: 36px;
-  background: #fff;
-  border: 1px solid #d0d0d0;
+  background: transparent;
+  border: none;
   color: #444;
   font-size: 18px;
   font-weight: 400;
@@ -117,7 +117,6 @@
 
 .btnClose:hover {
   background: #f5f5f5;
-  border-color: #b0b0b0;
 }
 
 .body {
@@ -150,6 +149,14 @@
   color: #FD490E;
   font-weight: 600;
   cursor: pointer;
+}
+
+.sectionTitleBar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
 }
 
 .sectionHeader {
@@ -222,6 +229,13 @@
   font-weight: 600;
 }
 
+.summaryTable td.sapOrderNoCell {
+  white-space: pre-line;
+  font-size: 12px;
+  line-height: 1.5;
+  vertical-align: top;
+}
+
 .sectionTitleIcon {
   width: 24px;
   height: 24px;
@@ -253,6 +267,92 @@
   margin-bottom: 16px;
 }
 
+.supplierBlock {
+  margin-top: 8px;
+}
+
+.supplierRow {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.supplierHeader {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.supplierShippingCol {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 14px;
+  min-width: 168px;
+  max-width: 220px;
+  background: #f7f8fa;
+  border-left: 1px solid #e8e8e8;
+}
+
+.supplierShippingLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  letter-spacing: -0.02em;
+}
+
+.supplierShippingBody {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.supplierHeader:hover {
+  background: #f8f9fb;
+}
+
+.supplierName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.supplierTotal {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+}
+
+.supplierArrow {
+  font-size: 18px;
+  color: #999;
+  transition: transform 0.2s ease;
+}
+
+.supplierArrowOpen {
+  transform: rotate(90deg);
+}
+
 .detailTable {
   width: 100%;
   border-collapse: collapse;
@@ -275,6 +375,21 @@
 .detailTable td {
   color: #333;
   background: #fff;
+}
+
+.productNameCell {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  line-height: 1.45;
+}
+
+.productManufacturer {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #9a9a9a;
+  line-height: 1.35;
 }
 
 .contentSection {
