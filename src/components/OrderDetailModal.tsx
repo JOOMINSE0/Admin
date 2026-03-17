@@ -22,15 +22,6 @@ function parseSapOrderNo(raw: string): { order: string; delivery: string; billin
   }
 }
 
-/** SAP 한 줄에서 출하구분 판별: 거점/수도권/지역 → 지역공장 출하, 공장/제조 등 → 제약공장 출하 */
-function getShipmentType(sapLine: string | null): string {
-  if (!sapLine || !sapLine.trim()) return '-'
-  const line = sapLine.trim()
-  if (/거점|수도권|지역(?!공장)/i.test(line)) return '지역공장 출하'
-  if (/공장|제조|제품/i.test(line)) return '제약공장 출하'
-  return '-'
-}
-
 /** 상품 텍스트(상품명/규격 등)에서 [제약 공장 출하(택배)] / [지역 창고 출하(도매 위탁)] 파싱해 출하구분 반환 */
 function getShipmentTypeFromProductText(productSpec: string | undefined): '제약공장 출하' | '지역공장 출하' | '' {
   if (!productSpec || !productSpec.trim()) return ''
@@ -38,18 +29,6 @@ function getShipmentTypeFromProductText(productSpec: string | undefined): '제�
   if (/\[제약\s*공장\s*출하/.test(s)) return '제약공장 출하'
   if (/\[지역\s*창고\s*출하/.test(s) || /\[지역\s*공장\s*출하/.test(s)) return '지역공장 출하'
   return ''
-}
-
-/** 출하구분 문자열로 배지 렌더. 제약공장/제약 공장 → 공장(factory.png), 지역공장/지역 창고 → 창고(storage.png) */
-function renderShipmentBadgeFromType(type: string) {
-  const normalized = type.trim()
-  if (normalized === '지역공장 출하' || normalized === '지역 창고 출하' || /지역\s*창고/.test(normalized)) {
-    return <img src="/storage.png" alt="창고" className={styles.shipmentBadge} title="지역 창고 출하" />
-  }
-  if (normalized === '제약공장 출하' || normalized === '제약 공장 출하' || /제약\s*공장/.test(normalized)) {
-    return <img src="/factory.png" alt="공장" className={styles.shipmentBadge} title="제약 공장 출하" />
-  }
-  return '-'
 }
 
 export type OrderDetailData = {
