@@ -22,19 +22,6 @@ function parseSapOrderNo(raw: string): { order: string; delivery: string; billin
   }
 }
 
-/** SAP 문자열을 줄 단위로 나누어 OTC/ETC 구분 (줄 시작이 OTC → otc, ETC → etc). 미구분 한 줄은 OTC로 처리 */
-function parseSapByOtcEtc(raw: string): { otc: string | null; etc: string | null } {
-  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-  let otc: string | null = null
-  let etc: string | null = null
-  for (const line of lines) {
-    if (/^OTC/i.test(line) && otc === null) otc = line
-    else if (/^ETC/i.test(line) && etc === null) etc = line
-  }
-  if (otc === null && etc === null && lines.length === 1) otc = lines[0]
-  return { otc, etc }
-}
-
 /** SAP 한 줄에서 출하구분 판별: 거점/수도권/지역 → 지역공장 출하, 공장/제조 등 → 제약공장 출하 */
 function getShipmentType(sapLine: string | null): string {
   if (!sapLine || !sapLine.trim()) return '-'
@@ -42,12 +29,6 @@ function getShipmentType(sapLine: string | null): string {
   if (/거점|수도권|지역(?!공장)/i.test(line)) return '지역공장 출하'
   if (/공장|제조|제품/i.test(line)) return '제약공장 출하'
   return '-'
-}
-
-/** 출하구분 값에 따라 배지 이미지 또는 '-' 표시 (지역공장/지역창고 → storage.png, 제약공장 → factory.png) */
-function renderShipmentBadge(sapLine: string | null) {
-  const type = getShipmentType(sapLine)
-  return renderShipmentBadgeFromType(type)
 }
 
 /** 상품 텍스트(상품명/규격 등)에서 [제약 공장 출하(택배)] / [지역 창고 출하(도매 위탁)] 파싱해 출하구분 반환 */
