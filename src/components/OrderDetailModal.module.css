@@ -56,54 +56,74 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
+/* 프린트·부분취소·상태변경: 밝은 배경, 진한 글자, 얇은 테두리, 둥근 모서리 */
 .btnPrint {
   padding: 8px 16px;
   font-size: 13px;
-  color: #fff;
-  background: #1976d2;
-  border: none;
-  border-radius: 8px;
+  font-weight: 500;
+  color: #333;
+  background: #fff;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.btnPrint:hover {
+  background: #f8f8f8;
+  border-color: #ccc;
 }
 
 .btnPartialCancel,
 .btnOrderCancel {
   padding: 8px 16px;
   font-size: 13px;
-  color: #fff;
-  background: #e53935;
-  border: none;
-  border-radius: 8px;
+  font-weight: 500;
+  color: #333;
+  background: #fff;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.btnPartialCancel:hover,
+.btnOrderCancel:hover {
+  background: #f8f8f8;
+  border-color: #ccc;
 }
 
 .btnShip {
   padding: 8px 16px;
   font-size: 13px;
-  color: #fff;
-  background: #1976d2;
-  border: none;
-  border-radius: 8px;
+  font-weight: 500;
+  color: #333;
+  background: #fff;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
+.btnShip:hover {
+  background: #f8f8f8;
+  border-color: #ccc;
+}
+
 .btnClose {
   padding: 8px 12px;
   min-width: 36px;
-  background: #fff;
-  border: 1px solid #d0d0d0;
+  background: transparent;
+  border: none;
   color: #444;
   font-size: 18px;
   font-weight: 400;
@@ -117,7 +137,6 @@
 
 .btnClose:hover {
   background: #f5f5f5;
-  border-color: #b0b0b0;
 }
 
 .body {
@@ -125,6 +144,158 @@
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+}
+
+.partialCancelForm {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+}
+
+.partialCancelGuidance {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.partialCancelGuidance ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: #c62828;
+  line-height: 1.6;
+  list-style: none;
+}
+
+.partialCancelGuidance ul li {
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.partialCancelGuidance ul li:last-child {
+  margin-bottom: 0;
+}
+
+.partialCancelTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+
+.partialCancelTable th,
+.partialCancelTable td {
+  padding: 8px 10px;
+  border: 1px solid #e0e0e0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.partialCancelTable th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #555;
+}
+
+.partialCancelInput {
+  width: 100%;
+  min-width: 60px;
+  max-width: 100px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.partialCancelSelect {
+  min-width: 100px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #fff;
+  color: #333;
+}
+
+.partialCancelAccumCell {
+  text-align: right;
+  font-weight: 500;
+}
+
+.partialCancelActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btnPartialCancelSubmit,
+.btnPartialCancelCancel {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #d8d8d8;
+  background: #fff;
+  color: #333;
+}
+
+.btnPartialCancelSubmit:hover,
+.btnPartialCancelCancel:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.partialCancelHistoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.partialCancelHistoryHeader .sectionTitleBar {
+  margin-bottom: 0;
+}
+
+.btnAccumHistory {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #333;
+  background: #fff;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btnAccumHistory:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.partialCancelSummary {
+  padding: 10px 14px;
+  font-size: 13px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.sectionTitleIconPartial {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #43a047;
+  border-radius: 50%;
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .infoGrid {
@@ -150,6 +321,14 @@
   color: #FD490E;
   font-weight: 600;
   cursor: pointer;
+}
+
+.sectionTitleBar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
 }
 
 .sectionHeader {
@@ -198,6 +377,22 @@
   margin-bottom: 16px;
 }
 
+.paymentCallout {
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
 .summaryTable th,
 .summaryTable td {
   padding: 10px 14px;
@@ -220,6 +415,117 @@
 .summaryTable td.orderNoLink {
   color: #FD490E;
   font-weight: 600;
+}
+
+.summaryTable td.sapOrderNoCell {
+  font-size: 12px;
+  line-height: 1.5;
+  vertical-align: top;
+  padding: 0;
+}
+
+.sapOrderNoInnerTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sapOrderNoInnerTable.sapOrderNoEqualCols,
+.sapOrderNoInnerTable.sapShipmentTable {
+  table-layout: fixed;
+}
+
+.sapShipmentTable td {
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.sapShipmentBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.sapOrderNoLine {
+  white-space: pre-line;
+  margin-top: 4px;
+}
+
+.sapOrderNoInnerTable th,
+.sapOrderNoInnerTable td {
+  padding: 10px 14px;
+  border: 1px solid #e8e8e8;
+  text-align: left;
+  vertical-align: top;
+  white-space: pre-line;
+}
+
+.sapOrderNoInnerTable th {
+  background: #f8f9fb;
+  font-weight: 600;
+  color: #555;
+  text-align: center;
+}
+
+.sapOrderNoInnerTable th.sapOrderNoThCompany {
+  font-size: 13px;
+}
+
+.sapOrderNoInnerTable th.sapOrderNoThOtcEtc {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sapOrderNoInnerTable th.sapOrderNoThShipment {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sapShipmentLine {
+  display: inline;
+  white-space: nowrap;
+}
+
+.sapShipmentLabel {
+  margin-right: 6px;
+  font-weight: 600;
+  color: #555;
+}
+
+.shipmentBadge {
+  display: block;
+  height: 37px;
+  width: auto;
+  max-width: 43px;
+  margin-left: auto;
+  margin-right: auto;
+  object-fit: contain;
+}
+
+.sapOrderNoInnerTable td {
+  background: #fff;
+  color: #333;
+}
+
+.sapOrderNoThLabel {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
+}
+
+.sapOrderNoValues {
+  line-height: 1.5;
+}
+
+.sapOrderNoInnerTable td.sapOrderNoTd div {
+  line-height: 1.5;
+}
+
+.sapOrderNoInnerTable td.sapOrderNoTd div + div {
+  margin-top: 4px;
 }
 
 .sectionTitleIcon {
@@ -253,6 +559,92 @@
   margin-bottom: 16px;
 }
 
+.supplierBlock {
+  margin-top: 8px;
+}
+
+.supplierRow {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.supplierHeader {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.supplierShippingCol {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 14px;
+  min-width: 168px;
+  max-width: 220px;
+  background: #f7f8fa;
+  border-left: 1px solid #e8e8e8;
+}
+
+.supplierShippingLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  letter-spacing: -0.02em;
+}
+
+.supplierShippingBody {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.supplierHeader:hover {
+  background: #f8f9fb;
+}
+
+.supplierName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.supplierTotal {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+}
+
+.supplierArrow {
+  font-size: 18px;
+  color: #999;
+  transition: transform 0.2s ease;
+}
+
+.supplierArrowOpen {
+  transform: rotate(90deg);
+}
+
 .detailTable {
   width: 100%;
   border-collapse: collapse;
@@ -270,11 +662,40 @@
   background: #f8f9fb;
   font-weight: 600;
   color: #555;
+  white-space: nowrap;
+}
+
+.detailTable td {
+  white-space: nowrap;
+}
+
+.detailTable td.cellAllowWrap {
+  white-space: normal;
+}
+
+.detailTable td.shipmentBadgeCell {
+  text-align: center;
+  vertical-align: middle;
 }
 
 .detailTable td {
   color: #333;
   background: #fff;
+}
+
+.productNameCell {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  line-height: 1.45;
+}
+
+.productManufacturer {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #9a9a9a;
+  line-height: 1.35;
 }
 
 .contentSection {

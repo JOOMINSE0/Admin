@@ -70,6 +70,32 @@ const supplierOptions = [
 
 const searchTypeOptions = ['약국명', '주문번호', '회원 아이디', '고객명', '상품명']
 
+/** 발송준비중 배송지역 필터 (시도 → 구군 → 읍면동) */
+const PLACEHOLDER_SIDO = '-시도-'
+const PLACEHOLDER_GUGUN = '-구군-'
+const PLACEHOLDER_EUP = '-읍면동-'
+const REGION_TREE: Record<string, Record<string, string[]>> = {
+  [PLACEHOLDER_SIDO]: { [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP] },
+  서울특별시: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    강남구: [PLACEHOLDER_EUP, '역삼동', '논현동', '대치동'],
+    강북구: [PLACEHOLDER_EUP, '미아동', '수유동'],
+    송파구: [PLACEHOLDER_EUP, '잠실동', '문정동'],
+  },
+  경기도: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    '수원시 영통구': [PLACEHOLDER_EUP, '영통동', '매탄동'],
+    '성남시 분당구': [PLACEHOLDER_EUP, '정자동', '야탑동'],
+    '고양시 덕양구': [PLACEHOLDER_EUP, '행신동', '화정동'],
+  },
+  부산광역시: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    해운대구: [PLACEHOLDER_EUP, '우동', '재송동'],
+    부산진구: [PLACEHOLDER_EUP, '부전동', '연지동'],
+  },
+}
+const SIDO_OPTIONS = [PLACEHOLDER_SIDO, ...Object.keys(REGION_TREE).filter((k) => k !== PLACEHOLDER_SIDO)]
+
 type StatusKey = 'all' | 'order_complete' | 'payment_complete' | 'preparing' | 'shipped' | 'order_cancel'
 const statusSteps: { key: StatusKey; label: string; icon: string; color: string }[] = [
   { key: 'all', label: '전체', icon: '', color: '#607d8b' },
@@ -89,7 +115,43 @@ const STATUS_KEY_TO_ORDER_STATUS: Record<Exclude<StatusKey, 'all'>, string> = {
   order_cancel: '주문 취소',
 }
 
+/** 전체 현황에서만 사용: 주문 상태값 드롭다운 옵션 (value는 orderStatus 매칭용, ''=전체) */
+const ALL_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: '전체' },
+  { value: '주문 완료', label: '주문 완료' },
+  { value: '결제완료', label: '결제 완료' },
+  { value: '발송 준비중', label: '발송 준비중' },
+  { value: '발송 완료', label: '발송 완료' },
+  { value: '주문 취소', label: '주문 취소' },
+  { value: '부분 취소', label: '부분 취소' },
+]
+
+// 발송완료 하드코딩 주문 (상세 팝업에서 이미지 기준 데이터 표시)
+const SHIPPED_ORDER_NO = 'P01041161391'
+
 const mockOrders = [
+  {
+    id: 0,
+    orderNo: SHIPPED_ORDER_NO,
+    supplier: '대웅제약',
+    productName: '니베타민성/37,5밀리그램/28성 1 (PTP) 외',
+    pharmacyName: '가람약국',
+    customerName: '신혜선',
+    memberPaymentMethod: '선결제회원',
+    orderAmount: 1931058,
+    salesAmount: 1931058,
+    supplyAmount: 1755507,
+    tax: 175551,
+    paymentAmount: 1896299,
+    finalAmount: 0,
+    paymentMethod: '예치금',
+    orderDateTime: '2026-02-06 14:49:30',
+    paymentDateTime: '2026-02-06 16:20:00',
+    shippedCompleteDateTime: '2026-02-10 11:30:00',
+    orderStatus: '발송 완료',
+    memo: '',
+    memberId: 'grpharm',
+  },
   {
     id: 1,
     orderNo: 'P01041416872',
@@ -106,12 +168,21 @@ const mockOrders = [
     finalAmount: 45467,
     paymentMethod: '신한카드BATCH결제',
     orderDateTime: '2026-03-16 09:44:58',
+    paymentDateTime: '2026-03-16 09:45:00',
+    shippedCompleteDateTime: '2026-03-16 14:00:00',
     orderStatus: '발송 완료',
     memo: 'N',
     memberId: 'test01',
   },
   ...Array.from({ length: 10 }, (_, i) => {
     const statuses: string[] = ['주문 완료', '주문 완료', '주문 완료', '결제완료', '결제완료', '결제완료', '결제완료', '발송 준비중', '발송 준비중', '발송 준비중']
+    const regions = [
+      { deliverySido: '서울특별시' as const, deliveryGugun: '강남구', deliveryEup: '역삼동' },
+      { deliverySido: '경기도' as const, deliveryGugun: '수원시 영통구', deliveryEup: '영통동' },
+      { deliverySido: '부산광역시' as const, deliveryGugun: '해운대구', deliveryEup: '우동' },
+    ]
+    const r = regions[i % 3]
+    const isPreparing = statuses[i] === '발송 준비중'
     return {
       id: i + 2,
       orderNo: `P0104141687${8 + i}`,
@@ -131,6 +202,7 @@ const mockOrders = [
       orderStatus: statuses[i],
       memo: 'N',
       memberId: `user${i + 2}`,
+      ...(isPreparing ? { deliverySido: r.deliverySido, deliveryGugun: r.deliveryGugun, deliveryEup: r.deliveryEup } : {}),
     }
   }),
 ]
@@ -142,10 +214,76 @@ function formatDate(d: Date) {
 type OrderRow = (typeof mockOrders)[number]
 
 function getOrderDetail(row: OrderRow): OrderDetailData {
+  if (row.orderNo === SHIPPED_ORDER_NO) {
+    const sapLines = [
+      `OTC(제): 오더(1510223871) / 납품(8012986009) / 빌링(9015844142) / ([거점] 김포이지메디컴)(출하완료)`,
+      `OTC: 오더(1510223871) / 납품(8013003947) / 빌링(9015867300) / (향남 제품,상품_향정)(출하완료)`,
+      `ETC(바): 오더(1510223869) / 납품(8012996999) / 빌링(9015859566) / (안성공장 제품/상품 마약)(출하완료)`,
+    ]
+    const sapOrderNoBySupplier: Record<string, string> = {
+      대웅제약: sapLines[0],
+      대웅바이오: sapLines[1],
+      한올바이오파마: sapLines[2],
+    }
+    return {
+      orderNo: 'P01041161391',
+      sapOrderNo: sapLines.join('\n'),
+      sapOrderNoBySupplier,
+      orderDateTime: '2026-02-06 14:49:30',
+      orderStatus: '발송 완료',
+      orderStatusDate: '2026-02-06 14:49:30',
+      totalOrderAmount: 1931058,
+      orderIdEmail: 'grpharm / grpharm@example.com',
+      paymentMethod: '예치금',
+      products: [
+        // 대웅제약 6종 (지역공장 출하)
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '니베타민성/37,5밀리그램/28성 1 (PTP)', manufacturer: '(주)대웅제약', sellingPrice: '101,288원', orderQty: '1', subtotal: '101,288원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '모바렌 5%폼에어로솔/60g/1캔', manufacturer: '(주)대웅제약', sellingPrice: '98,000원', orderQty: '1', subtotal: '98,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '타이레놀정500밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '95,000원', orderQty: '1', subtotal: '95,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '캡시플정0.075밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '102,000원', orderQty: '1', subtotal: '102,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '가스디알정20밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '108,000원', orderQty: '1', subtotal: '108,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '우루사캡슐100밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '103,000원', orderQty: '1', subtotal: '103,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        // 대웅바이오 4종 (제약공장 출하)
+        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '글리아타민 연질캡슐/400밀리그램/90캡슐 (PTP)', manufacturer: '대웅바이오(주)', sellingPrice: '225,000원', orderQty: '1', subtotal: '225,000원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '글리아타민 연질캡슐/400밀리그램/30캡슐 (PTP)', manufacturer: '대웅바이오(주)', sellingPrice: '195,168원', orderQty: '1', subtotal: '195,168원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '엔빌정5밀리그램', manufacturer: '대웅바이오(주)', sellingPrice: '192,751원', orderQty: '1', subtotal: '192,751원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '바이타민정', manufacturer: '대웅바이오(주)', sellingPrice: '192,751원', orderQty: '1', subtotal: '192,751원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        // 한올바이오파마 2종 (제약공장 출하)
+        { supplierName: '한올바이오파마', expectedDeliveryDate: '2026-02-07', category: '전문의약품', productSpec: '베노론캡슐/300밀리그램/100캡슐 (병)', manufacturer: '한올바이오파마(주)', sellingPrice: '259,050원', orderQty: '1', subtotal: '259,050원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        { supplierName: '한올바이오파마', expectedDeliveryDate: '2026-02-07', category: '전문의약품', productSpec: '베노론캡슐/300밀리그램/30캡슐 (PTP)', manufacturer: '한올바이오파마(주)', sellingPrice: '259,050원', orderQty: '1', subtotal: '259,050원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+      ],
+      supplierSummary: [
+        { supplier: '대웅제약', totalAmount: '607,288원', shippingCost: '0원', otcDiscount: '0원', costDiscount: '10,931원', mileageUsed: '0원' },
+        { supplier: '대웅바이오', totalAmount: '805,670원', shippingCost: '0원', otcDiscount: '0원', costDiscount: '14,502원', mileageUsed: '0원' },
+        { supplier: '한올바이오파마', totalAmount: '518,100원', shippingCost: '0원', otcDiscount: '0원', costDiscount: '9,326원', mileageUsed: '0원' },
+      ],
+      paymentSummary: [
+        { minusBalance: '0원', supplierCoupon: '0원', paymentAmount: '1,896,299원', earnedMileage: '0원', expectedDeposit: '0원' },
+      ],
+      customer: {
+        recipient: '가람약국 (신혜선)',
+        contact: '031-557-5050 / 010-5699-8647',
+        businessNo: '104-05-47262',
+        medicalCode: '31894721',
+        address: '(12260) 경기도 남양주시 도농로 1(도농동) 53-4',
+      },
+      vendorMessage: '발송 완료 건 배송 추적 확인 부탁드립니다.',
+      adminMemos: [
+        { id: '1', authorName: '관리자1', content: '배송 일정 확인 부탁드립니다.' },
+        { id: '2', authorName: '운영팀김철수', content: '확인했습니다. 발송 완료 처리되었습니다.' },
+      ],
+    }
+  }
+
   const [datePart] = row.orderDateTime.split(' ')
+  const sapTargets = ['대웅제약', '대웅바이오', '한올바이오파마']
+  const singleSap = row.orderNo.replace(/^P/, 'SAP') || '-'
+  const sapOrderNoBySupplier =
+    sapTargets.includes(row.supplier) ? { [row.supplier]: singleSap } : undefined
   return {
     orderNo: row.orderNo,
-    sapOrderNo: row.orderNo.replace(/^P/, 'SAP') || '-',
+    sapOrderNo: singleSap,
+    sapOrderNoBySupplier,
     orderDateTime: row.orderDateTime,
     orderStatus: row.orderStatus,
     orderStatusDate: row.orderDateTime,
@@ -163,11 +301,12 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
         orderQty: '10개',
         subtotal: `${row.orderAmount.toLocaleString()}원`,
         shippingCost: '0원',
+        shipmentType: sapTargets.includes(row.supplier) ? '제약공장 출하' : undefined,
       },
     ],
     supplierSummary: [
       {
-        supplier: row.supplier,
+        supplier: `${row.supplier} (도매)`,
         totalAmount: `${row.orderAmount.toLocaleString()}원`,
         shippingCost: '0원',
         otcDiscount: '0원',
@@ -267,11 +406,20 @@ export default function OrderStatus() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailOpen, setDetailOpen] = useState<OrderDetailData | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  /** 주문번호별 상태 오버라이드 (주문 취소 버튼 등으로 변경된 상태) */
+  const [orderStatusOverrides, setOrderStatusOverrides] = useState<Record<string, string>>({})
 
   const [supplier, setSupplier] = useState(supplierOptions[0])
   const [searchType2, setSearchType2] = useState('약국명')
   const [searchKeyword2, setSearchKeyword2] = useState('')
   const [deposit, setDeposit] = useState('전체')
+  const [deliverySido, setDeliverySido] = useState(PLACEHOLDER_SIDO)
+  const [deliveryGugun, setDeliveryGugun] = useState(PLACEHOLDER_GUGUN)
+  const [deliveryEup, setDeliveryEup] = useState(PLACEHOLDER_EUP)
+  /** 발송완료 현황: 기간 기준 (기본 주문일자) */
+  const [shippedDateBasis, setShippedDateBasis] = useState<'order' | 'payment' | 'shipped'>('order')
+  /** 전체 현황에서만: 주문 상태값 필터 ('')=전체 */
+  const [allStatusFilter, setAllStatusFilter] = useState('')
   const initialDateFrom = '2026-03-06'
   const initialDateTo = '2026-03-13'
 
@@ -283,14 +431,73 @@ export default function OrderStatus() {
     setSearchKeyword2('')
     setDeposit('전체')
     setPlusExclusiveY(false)
+    setDeliverySido(PLACEHOLDER_SIDO)
+    setDeliveryGugun(PLACEHOLDER_GUGUN)
+    setDeliveryEup(PLACEHOLDER_EUP)
+    setShippedDateBasis('order')
+    setAllStatusFilter('')
   }
 
-  // 선택된 상태에 따라 주문 목록 필터링 (주문내역 orderStatus와 매칭)
-  const filteredOrders = activeStatus === 'all'
-    ? mockOrders
-    : mockOrders.filter((order) => order.orderStatus === STATUS_KEY_TO_ORDER_STATUS[activeStatus])
+  const gugunOptions =
+    deliverySido && REGION_TREE[deliverySido]
+      ? [PLACEHOLDER_GUGUN, ...Object.keys(REGION_TREE[deliverySido]).filter((k) => k !== PLACEHOLDER_GUGUN)]
+      : [PLACEHOLDER_GUGUN]
+  const eupOptions =
+    deliverySido && deliveryGugun && REGION_TREE[deliverySido]?.[deliveryGugun]
+      ? REGION_TREE[deliverySido][deliveryGugun]
+      : [PLACEHOLDER_EUP]
 
-  const statusCounts = getStatusCounts(mockOrders)
+  const ordersWithOverrides: OrderRow[] = mockOrders.map((o) => ({
+    ...o,
+    orderStatus: orderStatusOverrides[o.orderNo] ?? o.orderStatus,
+  }))
+
+  // 선택된 상태에 따라 주문 목록 필터링 (주문내역 orderStatus와 매칭)
+  let filteredOrders =
+    activeStatus === 'all'
+      ? ordersWithOverrides
+      : ordersWithOverrides.filter((order) => order.orderStatus === STATUS_KEY_TO_ORDER_STATUS[activeStatus])
+
+  if (activeStatus === 'all' && allStatusFilter !== '') {
+    filteredOrders = filteredOrders.filter((order) => order.orderStatus === allStatusFilter)
+  }
+
+  if (activeStatus === 'preparing') {
+    type RowWithRegion = OrderRow & { deliverySido?: string; deliveryGugun?: string; deliveryEup?: string }
+    if (deliverySido !== PLACEHOLDER_SIDO) {
+      filteredOrders = filteredOrders.filter((o) => (o as RowWithRegion).deliverySido === deliverySido)
+    }
+    if (deliveryGugun !== PLACEHOLDER_GUGUN) {
+      filteredOrders = filteredOrders.filter((o) => (o as RowWithRegion).deliveryGugun === deliveryGugun)
+    }
+    if (deliveryEup !== PLACEHOLDER_EUP) {
+      filteredOrders = filteredOrders.filter((o) => (o as RowWithRegion).deliveryEup === deliveryEup)
+    }
+  }
+
+  type RowWithShippedDates = OrderRow & {
+    paymentDateTime?: string
+    shippedCompleteDateTime?: string
+  }
+  if (activeStatus === 'shipped') {
+    const from = dateFrom
+    const to = dateTo
+    const inRange = (row: OrderRow) => {
+      const r = row as RowWithShippedDates
+      let d: string
+      if (shippedDateBasis === 'order') {
+        d = row.orderDateTime.slice(0, 10)
+      } else if (shippedDateBasis === 'payment') {
+        d = (r.paymentDateTime ?? row.orderDateTime).slice(0, 10)
+      } else {
+        d = (r.shippedCompleteDateTime ?? row.orderDateTime).slice(0, 10)
+      }
+      return d >= from && d <= to
+    }
+    filteredOrders = filteredOrders.filter(inRange)
+  }
+
+  const statusCounts = getStatusCounts(ordersWithOverrides)
 
   const PAGE_SIZE = 10
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
@@ -299,7 +506,7 @@ export default function OrderStatus() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeStatus])
+  }, [activeStatus, shippedDateBasis, dateFrom, dateTo, deliverySido, deliveryGugun, deliveryEup, allStatusFilter])
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages >= 1) setCurrentPage(1)
@@ -407,7 +614,22 @@ export default function OrderStatus() {
           </button>
         </div>
         <div className={styles.filterRow}>
-          <label className={styles.filterLabel}>주문일자</label>
+          {activeStatus === 'shipped' ? (
+            <select
+              className={styles.select}
+              value={shippedDateBasis}
+              onChange={(e) =>
+                setShippedDateBasis(e.target.value as 'order' | 'payment' | 'shipped')
+              }
+              aria-label="발송완료 기간 기준"
+            >
+              <option value="order">주문일자</option>
+              <option value="payment">결제일자</option>
+              <option value="shipped">발송완료 일자</option>
+            </select>
+          ) : (
+            <label className={styles.filterLabel}>주문일자</label>
+          )}
           <input
             type="date"
             value={dateFrom}
@@ -428,6 +650,53 @@ export default function OrderStatus() {
             <button type="button" className={styles.quickBtn} onClick={() => setQuickDate('1month')}>1개월</button>
           </div>
         </div>
+        {activeStatus === 'preparing' && (
+          <div className={styles.filterRow}>
+            <label className={styles.filterLabel}>배송지역</label>
+            <select
+              className={styles.select}
+              value={deliverySido}
+              onChange={(e) => {
+                const v = e.target.value
+                setDeliverySido(v)
+                setDeliveryGugun(PLACEHOLDER_GUGUN)
+                setDeliveryEup(PLACEHOLDER_EUP)
+              }}
+            >
+              {SIDO_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.select}
+              value={deliveryGugun}
+              onChange={(e) => {
+                const v = e.target.value
+                setDeliveryGugun(v)
+                setDeliveryEup(PLACEHOLDER_EUP)
+              }}
+            >
+              {gugunOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.select}
+              value={deliveryEup}
+              onChange={(e) => setDeliveryEup(e.target.value)}
+            >
+              {eupOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className={styles.filterBlock}>
           <div className={styles.filterTopRow}>
             <div className={styles.filterItem}>
@@ -438,13 +707,13 @@ export default function OrderStatus() {
                 ))}
               </select>
             </div>
-            <button type="button" className={styles.btnOrange}>가나다순</button>
             <div className={styles.filterItem}>
               <label className={styles.filterLabel}>예치금</label>
               <select className={styles.select} value={deposit} onChange={(e) => setDeposit(e.target.value)}>
-                <option>전체</option>
-                <option>구매</option>
-                <option>제외</option>
+                <option value="전체">전체</option>
+                <option value="구매(즉시할인 포함)">구매(즉시할인 포함)</option>
+                <option value="구매(즉시할인 제외)">구매(즉시할인 제외)</option>
+                <option value="제외">제외</option>
               </select>
             </div>
             <div className={styles.filterItem}>
@@ -479,6 +748,22 @@ export default function OrderStatus() {
                 </select>
                 <input type="text" className={styles.input} placeholder="" value={searchKeyword2} onChange={(e) => setSearchKeyword2(e.target.value)} />
               </div>
+              {activeStatus === 'all' && (
+                <>
+                  <label className={styles.filterLabel}>주문 상태</label>
+                  <select
+                    className={styles.select}
+                    value={allStatusFilter}
+                    onChange={(e) => setAllStatusFilter(e.target.value)}
+                  >
+                    {ALL_STATUS_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value || 'all'} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
             <div className={styles.filterActions}>
               <button type="button" className={styles.btnSecondary} onClick={resetAllFilters}>검색 초기화</button>
@@ -516,6 +801,16 @@ export default function OrderStatus() {
             >
               엑셀 다운로드
             </button>
+            {activeStatus === 'payment_complete' && (
+              <button type="button" className={styles.btnShipPrepare}>
+                발송 준비중 처리
+              </button>
+            )}
+            {activeStatus === 'preparing' && (
+              <button type="button" className={styles.btnShipComplete}>
+                발송완료 처리
+              </button>
+            )}
           </div>
         </div>
         <div className={styles.tableWrap}>
@@ -632,7 +927,15 @@ export default function OrderStatus() {
         )}
       </div>
 
-      <OrderDetailModal detail={detailOpen} onClose={() => setDetailOpen(null)} currentUserName="관리자1" />
+      <OrderDetailModal
+        detail={detailOpen}
+        onClose={() => setDetailOpen(null)}
+        currentUserName="관리자1"
+        onOrderCancel={(orderNo) => {
+          setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: '주문 취소' }))
+          setDetailOpen(null)
+        }}
+      />
     </div>
   )
 }
