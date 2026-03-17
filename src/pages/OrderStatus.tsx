@@ -215,13 +215,20 @@ type OrderRow = (typeof mockOrders)[number]
 
 function getOrderDetail(row: OrderRow): OrderDetailData {
   if (row.orderNo === SHIPPED_ORDER_NO) {
+    const sapLines = [
+      `OTC(제): 오더(1510223871) / 납품(8012986009) / 빌링(9015844142) / ([거점] 김포이지메디컴)(출하완료)`,
+      `OTC: 오더(1510223871) / 납품(8013003947) / 빌링(9015867300) / (향남 제품,상품_향정)(출하완료)`,
+      `ETC(바): 오더(1510223869) / 납품(8012996999) / 빌링(9015859566) / (안성공장 제품/상품 마약)(출하완료)`,
+    ]
+    const sapOrderNoBySupplier: Record<string, string> = {
+      대웅제약: sapLines[0],
+      대웅바이오: sapLines[1],
+      한올바이오파마: sapLines[2],
+    }
     return {
       orderNo: 'P01041161391',
-      sapOrderNo: `OTC(제): 오더(1510223871) / 납품(8012986009) / 빌링(9015844142) / ([거점] 김포이지메디컴)(출하완료)
-OTC: 오더(1510223871) / 납품(8013003947) / 빌링(9015867300) / (향남 제품,상품_향정)(출하완료)
-ETC(바): 오더(1510223869) / 납품(8012996999) / 빌링(9015859566) / (안성공장 제품/상품 마약)(출하완료)
-ETC: 오더(1510223870) / 납품(8012986191) / 빌링(9015841851) / (수도권3)(출하완료)
-ETC: 오더(1510223872) / 납품(8012986123) / 빌링(9015839567) / ([거점] 김포이지메디컴)(출하완료)`,
+      sapOrderNo: sapLines.join('\n'),
+      sapOrderNoBySupplier,
       orderDateTime: '2026-02-06 14:49:30',
       orderStatus: '발송 완료',
       orderStatusDate: '2026-02-06 14:49:30',
@@ -229,21 +236,21 @@ ETC: 오더(1510223872) / 납품(8012986123) / 빌링(9015839567) / ([거점] �
       orderIdEmail: 'grpharm / grpharm@example.com',
       paymentMethod: '예치금',
       products: [
-        // 대웅제약 6종 (합계 607,288원)
-        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '니베타민성/37,5밀리그램/28성 1 (PTP)', manufacturer: '(주)대웅제약', sellingPrice: '101,288원', orderQty: '1', subtotal: '101,288원', shippingCost: '0원' },
-        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '모바렌 5%폼에어로솔/60g/1캔', manufacturer: '(주)대웅제약', sellingPrice: '98,000원', orderQty: '1', subtotal: '98,000원', shippingCost: '0원' },
-        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '타이레놀정500밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '95,000원', orderQty: '1', subtotal: '95,000원', shippingCost: '0원' },
-        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '캡시플정0.075밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '102,000원', orderQty: '1', subtotal: '102,000원', shippingCost: '0원' },
-        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '가스디알정20밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '108,000원', orderQty: '1', subtotal: '108,000원', shippingCost: '0원' },
-        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '우루사캡슐100밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '103,000원', orderQty: '1', subtotal: '103,000원', shippingCost: '0원' },
-        // 대웅바이오 4종 (합계 805,670원)
-        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '글리아타민 연질캡슐/400밀리그램/90캡슐 (PTP)', manufacturer: '대웅바이오(주)', sellingPrice: '225,000원', orderQty: '1', subtotal: '225,000원', shippingCost: '0원' },
-        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '글리아타민 연질캡슐/400밀리그램/30캡슐 (PTP)', manufacturer: '대웅바이오(주)', sellingPrice: '195,168원', orderQty: '1', subtotal: '195,168원', shippingCost: '0원' },
-        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '엔빌정5밀리그램', manufacturer: '대웅바이오(주)', sellingPrice: '192,751원', orderQty: '1', subtotal: '192,751원', shippingCost: '0원' },
-        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '바이타민정', manufacturer: '대웅바이오(주)', sellingPrice: '192,751원', orderQty: '1', subtotal: '192,751원', shippingCost: '0원' },
-        // 한올바이오파마 2종 (합계 518,100원)
-        { supplierName: '한올바이오파마', expectedDeliveryDate: '2026-02-07', category: '전문의약품', productSpec: '베노론캡슐/300밀리그램/100캡슐 (병)', manufacturer: '한올바이오파마(주)', sellingPrice: '259,050원', orderQty: '1', subtotal: '259,050원', shippingCost: '0원' },
-        { supplierName: '한올바이오파마', expectedDeliveryDate: '2026-02-07', category: '전문의약품', productSpec: '베노론캡슐/300밀리그램/30캡슐 (PTP)', manufacturer: '한올바이오파마(주)', sellingPrice: '259,050원', orderQty: '1', subtotal: '259,050원', shippingCost: '0원' },
+        // 대웅제약 6종 (지역공장 출하)
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '니베타민성/37,5밀리그램/28성 1 (PTP)', manufacturer: '(주)대웅제약', sellingPrice: '101,288원', orderQty: '1', subtotal: '101,288원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '모바렌 5%폼에어로솔/60g/1캔', manufacturer: '(주)대웅제약', sellingPrice: '98,000원', orderQty: '1', subtotal: '98,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '타이레놀정500밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '95,000원', orderQty: '1', subtotal: '95,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '캡시플정0.075밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '102,000원', orderQty: '1', subtotal: '102,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '가스디알정20밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '108,000원', orderQty: '1', subtotal: '108,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        { supplierName: '대웅제약', expectedDeliveryDate: '2026-02-10', category: '전문의약품', productSpec: '우루사캡슐100밀리그램', manufacturer: '(주)대웅제약', sellingPrice: '103,000원', orderQty: '1', subtotal: '103,000원', shippingCost: '0원', shipmentType: '지역공장 출하' },
+        // 대웅바이오 4종 (제약공장 출하)
+        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '글리아타민 연질캡슐/400밀리그램/90캡슐 (PTP)', manufacturer: '대웅바이오(주)', sellingPrice: '225,000원', orderQty: '1', subtotal: '225,000원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '글리아타민 연질캡슐/400밀리그램/30캡슐 (PTP)', manufacturer: '대웅바이오(주)', sellingPrice: '195,168원', orderQty: '1', subtotal: '195,168원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '엔빌정5밀리그램', manufacturer: '대웅바이오(주)', sellingPrice: '192,751원', orderQty: '1', subtotal: '192,751원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        { supplierName: '대웅바이오', expectedDeliveryDate: '2026-02-10', category: '일반의약품', productSpec: '바이타민정', manufacturer: '대웅바이오(주)', sellingPrice: '192,751원', orderQty: '1', subtotal: '192,751원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        // 한올바이오파마 2종 (제약공장 출하)
+        { supplierName: '한올바이오파마', expectedDeliveryDate: '2026-02-07', category: '전문의약품', productSpec: '베노론캡슐/300밀리그램/100캡슐 (병)', manufacturer: '한올바이오파마(주)', sellingPrice: '259,050원', orderQty: '1', subtotal: '259,050원', shippingCost: '0원', shipmentType: '제약공장 출하' },
+        { supplierName: '한올바이오파마', expectedDeliveryDate: '2026-02-07', category: '전문의약품', productSpec: '베노론캡슐/300밀리그램/30캡슐 (PTP)', manufacturer: '한올바이오파마(주)', sellingPrice: '259,050원', orderQty: '1', subtotal: '259,050원', shippingCost: '0원', shipmentType: '제약공장 출하' },
       ],
       supplierSummary: [
         { supplier: '대웅제약', totalAmount: '607,288원', shippingCost: '0원', otcDiscount: '0원', costDiscount: '10,931원', mileageUsed: '0원' },
@@ -269,9 +276,14 @@ ETC: 오더(1510223872) / 납품(8012986123) / 빌링(9015839567) / ([거점] �
   }
 
   const [datePart] = row.orderDateTime.split(' ')
+  const sapTargets = ['대웅제약', '대웅바이오', '한올바이오파마']
+  const singleSap = row.orderNo.replace(/^P/, 'SAP') || '-'
+  const sapOrderNoBySupplier =
+    sapTargets.includes(row.supplier) ? { [row.supplier]: singleSap } : undefined
   return {
     orderNo: row.orderNo,
-    sapOrderNo: row.orderNo.replace(/^P/, 'SAP') || '-',
+    sapOrderNo: singleSap,
+    sapOrderNoBySupplier,
     orderDateTime: row.orderDateTime,
     orderStatus: row.orderStatus,
     orderStatusDate: row.orderDateTime,
@@ -289,6 +301,7 @@ ETC: 오더(1510223872) / 납품(8012986123) / 빌링(9015839567) / ([거점] �
         orderQty: '10개',
         subtotal: `${row.orderAmount.toLocaleString()}원`,
         shippingCost: '0원',
+        shipmentType: sapTargets.includes(row.supplier) ? '제약공장 출하' : undefined,
       },
     ],
     supplierSummary: [
@@ -393,6 +406,8 @@ export default function OrderStatus() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailOpen, setDetailOpen] = useState<OrderDetailData | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  /** 주문번호별 상태 오버라이드 (주문 취소 버튼 등으로 변경된 상태) */
+  const [orderStatusOverrides, setOrderStatusOverrides] = useState<Record<string, string>>({})
 
   const [supplier, setSupplier] = useState(supplierOptions[0])
   const [searchType2, setSearchType2] = useState('약국명')
@@ -432,11 +447,16 @@ export default function OrderStatus() {
       ? REGION_TREE[deliverySido][deliveryGugun]
       : [PLACEHOLDER_EUP]
 
+  const ordersWithOverrides: OrderRow[] = mockOrders.map((o) => ({
+    ...o,
+    orderStatus: orderStatusOverrides[o.orderNo] ?? o.orderStatus,
+  }))
+
   // 선택된 상태에 따라 주문 목록 필터링 (주문내역 orderStatus와 매칭)
   let filteredOrders =
     activeStatus === 'all'
-      ? mockOrders
-      : mockOrders.filter((order) => order.orderStatus === STATUS_KEY_TO_ORDER_STATUS[activeStatus])
+      ? ordersWithOverrides
+      : ordersWithOverrides.filter((order) => order.orderStatus === STATUS_KEY_TO_ORDER_STATUS[activeStatus])
 
   if (activeStatus === 'all' && allStatusFilter !== '') {
     filteredOrders = filteredOrders.filter((order) => order.orderStatus === allStatusFilter)
@@ -477,7 +497,7 @@ export default function OrderStatus() {
     filteredOrders = filteredOrders.filter(inRange)
   }
 
-  const statusCounts = getStatusCounts(mockOrders)
+  const statusCounts = getStatusCounts(ordersWithOverrides)
 
   const PAGE_SIZE = 10
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
@@ -690,9 +710,10 @@ export default function OrderStatus() {
             <div className={styles.filterItem}>
               <label className={styles.filterLabel}>예치금</label>
               <select className={styles.select} value={deposit} onChange={(e) => setDeposit(e.target.value)}>
-                <option>전체</option>
-                <option>구매</option>
-                <option>제외</option>
+                <option value="전체">전체</option>
+                <option value="구매(즉시할인 포함)">구매(즉시할인 포함)</option>
+                <option value="구매(즉시할인 제외)">구매(즉시할인 제외)</option>
+                <option value="제외">제외</option>
               </select>
             </div>
             <div className={styles.filterItem}>
@@ -780,6 +801,16 @@ export default function OrderStatus() {
             >
               엑셀 다운로드
             </button>
+            {activeStatus === 'payment_complete' && (
+              <button type="button" className={styles.btnShipPrepare}>
+                발송 준비중 처리
+              </button>
+            )}
+            {activeStatus === 'preparing' && (
+              <button type="button" className={styles.btnShipComplete}>
+                발송완료 처리
+              </button>
+            )}
           </div>
         </div>
         <div className={styles.tableWrap}>
@@ -896,7 +927,15 @@ export default function OrderStatus() {
         )}
       </div>
 
-      <OrderDetailModal detail={detailOpen} onClose={() => setDetailOpen(null)} currentUserName="관리자1" />
+      <OrderDetailModal
+        detail={detailOpen}
+        onClose={() => setDetailOpen(null)}
+        currentUserName="관리자1"
+        onOrderCancel={(orderNo) => {
+          setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: '주문 취소' }))
+          setDetailOpen(null)
+        }}
+      />
     </div>
   )
 }

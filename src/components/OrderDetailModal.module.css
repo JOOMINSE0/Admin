@@ -85,7 +85,7 @@
   font-size: 13px;
   font-weight: 500;
   color: #333;
-  background: #f0f0f0;
+  background: #fff;
   border: 1px solid #d8d8d8;
   border-radius: 6px;
   cursor: pointer;
@@ -96,7 +96,7 @@
 
 .btnPartialCancel:hover,
 .btnOrderCancel:hover {
-  background: #e8e8e8;
+  background: #f8f8f8;
   border-color: #ccc;
 }
 
@@ -105,7 +105,7 @@
   font-size: 13px;
   font-weight: 500;
   color: #333;
-  background: #f0f0f0;
+  background: #fff;
   border: 1px solid #d8d8d8;
   border-radius: 6px;
   cursor: pointer;
@@ -115,7 +115,7 @@
 }
 
 .btnShip:hover {
-  background: #e8e8e8;
+  background: #f8f8f8;
   border-color: #ccc;
 }
 
@@ -160,6 +160,7 @@
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
+  overflow-x: auto;
 }
 
 .partialCancelGuidance ul {
@@ -168,6 +169,16 @@
   font-size: 12px;
   color: #c62828;
   line-height: 1.6;
+  list-style: none;
+}
+
+.partialCancelGuidance ul li {
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.partialCancelGuidance ul li:last-child {
+  margin-bottom: 0;
 }
 
 .partialCancelTable {
@@ -211,6 +222,11 @@
   color: #333;
 }
 
+.partialCancelAccumCell {
+  text-align: right;
+  font-weight: 500;
+}
+
 .partialCancelActions {
   display: flex;
   gap: 10px;
@@ -232,6 +248,34 @@
 .btnPartialCancelSubmit:hover,
 .btnPartialCancelCancel:hover {
   background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.partialCancelHistoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.partialCancelHistoryHeader .sectionTitleBar {
+  margin-bottom: 0;
+}
+
+.btnAccumHistory {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #333;
+  background: #fff;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btnAccumHistory:hover {
+  background: #f5f5f5;
   border-color: #ccc;
 }
 
@@ -374,10 +418,114 @@
 }
 
 .summaryTable td.sapOrderNoCell {
-  white-space: pre-line;
   font-size: 12px;
   line-height: 1.5;
   vertical-align: top;
+  padding: 0;
+}
+
+.sapOrderNoInnerTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sapOrderNoInnerTable.sapOrderNoEqualCols,
+.sapOrderNoInnerTable.sapShipmentTable {
+  table-layout: fixed;
+}
+
+.sapShipmentTable td {
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.sapShipmentBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.sapOrderNoLine {
+  white-space: pre-line;
+  margin-top: 4px;
+}
+
+.sapOrderNoInnerTable th,
+.sapOrderNoInnerTable td {
+  padding: 10px 14px;
+  border: 1px solid #e8e8e8;
+  text-align: left;
+  vertical-align: top;
+  white-space: pre-line;
+}
+
+.sapOrderNoInnerTable th {
+  background: #f8f9fb;
+  font-weight: 600;
+  color: #555;
+  text-align: center;
+}
+
+.sapOrderNoInnerTable th.sapOrderNoThCompany {
+  font-size: 13px;
+}
+
+.sapOrderNoInnerTable th.sapOrderNoThOtcEtc {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sapOrderNoInnerTable th.sapOrderNoThShipment {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sapShipmentLine {
+  display: inline;
+  white-space: nowrap;
+}
+
+.sapShipmentLabel {
+  margin-right: 6px;
+  font-weight: 600;
+  color: #555;
+}
+
+.shipmentBadge {
+  display: block;
+  height: 37px;
+  width: auto;
+  max-width: 43px;
+  margin-left: auto;
+  margin-right: auto;
+  object-fit: contain;
+}
+
+.sapOrderNoInnerTable td {
+  background: #fff;
+  color: #333;
+}
+
+.sapOrderNoThLabel {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
+}
+
+.sapOrderNoValues {
+  line-height: 1.5;
+}
+
+.sapOrderNoInnerTable td.sapOrderNoTd div {
+  line-height: 1.5;
+}
+
+.sapOrderNoInnerTable td.sapOrderNoTd div + div {
+  margin-top: 4px;
 }
 
 .sectionTitleIcon {
@@ -523,6 +671,11 @@
 
 .detailTable td.cellAllowWrap {
   white-space: normal;
+}
+
+.detailTable td.shipmentBadgeCell {
+  text-align: center;
+  vertical-align: middle;
 }
 
 .detailTable td {
