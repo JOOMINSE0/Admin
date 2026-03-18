@@ -864,8 +864,8 @@ export default function OrderStatus() {
               </tr>
             </thead>
             <tbody>
-              {paginatedOrders.map((row, idx) => (
-                <tr key={row.id} className={idx === 0 ? styles.rowHighlight : ''}>
+              {paginatedOrders.map((row) => (
+                <tr key={row.id}>
                   <td className={styles.colSticky1}>
                     <input
                       type="checkbox"

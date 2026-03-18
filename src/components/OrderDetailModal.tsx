@@ -536,7 +536,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                   </div>
                   {isOpen && (
                     <div className={styles.tableWrap}>
-                      <table className={styles.detailTable}>
+                      <table className={`${styles.detailTable} ${styles.detailTableCenter}`}>
                         <thead>
                           <tr>
                             <th>공급사</th>
