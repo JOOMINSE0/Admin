@@ -225,10 +225,22 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
       대웅바이오: sapLines[1],
       한올바이오파마: sapLines[2],
     }
+    const sapShipmentTypeBySupplier: Record<string, '지역' | '공장'> = {
+      대웅제약: '지역',
+      대웅바이오: '공장',
+      한올바이오파마: '공장',
+    }
+    const sapCategoryBySupplier: Record<string, 'OTC' | 'ETC'> = {
+      대웅제약: 'OTC',
+      대웅바이오: 'OTC',
+      한올바이오파마: 'ETC',
+    }
     return {
       orderNo: 'P01041161391',
       sapOrderNo: sapLines.join('\n'),
       sapOrderNoBySupplier,
+      sapShipmentTypeBySupplier,
+      sapCategoryBySupplier,
       orderDateTime: '2026-02-06 14:49:30',
       orderStatus: '발송 완료',
       orderStatusDate: '2026-02-06 14:49:30',
@@ -339,14 +351,13 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
 }
 
 const EXCEL_HEADERS = [
-  '번호', '주문번호', '공급처', '상품명', '약국명', '고객명', '회원결제방식',
+  '주문번호', '공급처', '상품명', '약국명', '고객명', '회원결제방식',
   '주문금액', '매출액', '공급가액', '부가세', '결제금액', '최종결제금액',
   '결제방식', '주문일시', '주문상태', '메모', '회원ID',
 ]
 
 function downloadOrderExcel(orders: OrderRow[]) {
-  const rows = orders.map((row, idx) => [
-    idx + 1,
+  const rows = orders.map((row) => [
     row.orderNo,
     row.supplier,
     row.productName,
@@ -823,18 +834,18 @@ export default function OrderStatus() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>
-                <input
-                  type="checkbox"
-                  checked={allFilteredSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = someFilteredSelected
-                  }}
-                  onChange={toggleSelectAll}
-                />
-              </th>
-                <th>번호</th>
-                <th>주문번호</th>
+                <th className={styles.colSticky1}>
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someFilteredSelected
+                    }}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+                <th className={styles.colSticky2}>주문번호</th>
+                <th className={styles.colSticky3}>주문상태</th>
                 <th>공급처</th>
                 <th>상품명</th>
                 <th>약국명</th>
@@ -848,7 +859,6 @@ export default function OrderStatus() {
                 <th>최종결제금액</th>
                 <th>결제방식</th>
                 <th>주문일시</th>
-                <th>주문상태</th>
                 <th>메모</th>
                 <th>회원ID</th>
               </tr>
@@ -856,15 +866,14 @@ export default function OrderStatus() {
             <tbody>
               {paginatedOrders.map((row, idx) => (
                 <tr key={row.id} className={idx === 0 ? styles.rowHighlight : ''}>
-                  <td>
+                  <td className={styles.colSticky1}>
                     <input
                       type="checkbox"
                       checked={selectedIds.has(row.id)}
                       onChange={() => toggleSelectOne(row.id)}
                     />
                   </td>
-                  <td>{(safePage - 1) * PAGE_SIZE + idx + 1}</td>
-                  <td>
+                  <td className={styles.colSticky2}>
                     <button
                       type="button"
                       className={styles.orderNoLink}
@@ -873,6 +882,7 @@ export default function OrderStatus() {
                       {row.orderNo}
                     </button>
                   </td>
+                  <td className={styles.colSticky3}>{row.orderStatus}</td>
                   <td>{row.supplier}</td>
                   <td>{row.productName}</td>
                   <td>{row.pharmacyName}</td>
@@ -886,7 +896,6 @@ export default function OrderStatus() {
                   <td>{row.finalAmount.toLocaleString()}</td>
                   <td>{row.paymentMethod}</td>
                   <td>{row.orderDateTime}</td>
-                  <td>{row.orderStatus}</td>
                   <td>{row.memo}</td>
                   <td>{row.memberId}</td>
                 </tr>

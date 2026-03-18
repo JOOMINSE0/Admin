@@ -22,6 +22,12 @@ function parseSapOrderNo(raw: string): { order: string; delivery: string; billin
   }
 }
 
+/** SAP 라인 앞부분에서 OTC/ETC 추출 (예: "OTC(제): ..." → "OTC", "ETC(바): ..." → "ETC") */
+function parseSapCategoryFromLine(line: string): 'OTC' | 'ETC' | null {
+  const m = line.trim().match(/^(OTC|ETC)/i)
+  return m ? (m[1].toUpperCase() as 'OTC' | 'ETC') : null
+}
+
 /** 상품 텍스트(상품명/규격 등)에서 [제약 공장 출하(택배)] / [지역 창고 출하(도매 위탁)] 파싱해 출하구분 반환 */
 function getShipmentTypeFromProductText(productSpec: string | undefined): '제약공장 출하' | '지역공장 출하' | '' {
   if (!productSpec || !productSpec.trim()) return ''
@@ -36,6 +42,10 @@ export type OrderDetailData = {
   sapOrderNo: string
   /** 제약사별 SAP주문번호 (키: 공급사명, 값: 해당 SAP번호) */
   sapOrderNoBySupplier?: Record<string, string>
+  /** SAP 공급사별 출하구분 배지 (지역/공장) */
+  sapShipmentTypeBySupplier?: Record<string, '지역' | '공장'>
+  /** SAP 공급사별 구분 (OTC/ETC). 오른쪽에 표시 */
+  sapCategoryBySupplier?: Record<string, 'OTC' | 'ETC'>
   orderDateTime: string
   orderStatus: string
   orderStatusDate: string
@@ -417,9 +427,9 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
               const hasSap = sapSuppliers.length > 0
               if (!hasSap) return null
               return (
-                <div className={styles.contentSection}>
+                <div className={styles.sapOrderSection}>
                   <div className={styles.sectionTitleBar}>
-                    <span className={styles.sectionTitle}>SAP주문 정보</span>
+                    <span className={styles.sectionTitle}>SAP 주문 정보</span>
                   </div>
                   <div className={styles.sectionBody}>
                     <table className={`${styles.sapOrderNoInnerTable} ${styles.sapOrderNoEqualCols}`}>
@@ -433,7 +443,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                           {sapSuppliers.map((name) => (
                             <th key={name} className={styles.sapOrderNoThCompany}>
                               <div>{name}</div>
-                              <div className={styles.sapOrderNoThLabel}>(오더/납품/빌링)</div>
+                              <div className={styles.sapOrderNoThLabel}>(오더 / 납품 / 빌링)</div>
                             </th>
                           ))}
                         </tr>
@@ -443,15 +453,34 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                           {sapSuppliers.map((name) => {
                             const raw = bySupplier?.[name] ?? singleFallback ?? ''
                             if (!raw || !raw.trim()) return <td key={name} className={styles.sapOrderNoTd}>-</td>
+                            const badgeType = detail.sapShipmentTypeBySupplier?.[name]
                             const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
                             return (
                               <td key={name} className={styles.sapOrderNoTd}>
                                 {lines.map((line, i) => {
                                   const parsed = parseSapOrderNo(line)
                                   const hasData = parsed.order !== '-' || parsed.delivery !== '-' || parsed.billing !== '-'
+                                  const category = detail.sapCategoryBySupplier?.[name] ?? parseSapCategoryFromLine(line)
                                   return hasData ? (
-                                    <div key={i} className={styles.sapOrderNoValues}>
-                                      {parsed.order} / {parsed.delivery} / {parsed.billing}
+                                    <div key={i} className={styles.sapOrderNoCellWrap}>
+                                      <div className={styles.sapOrderNoCellLeft}>
+                                        {parsed.order} / {parsed.delivery} / {parsed.billing}
+                                      </div>
+                                      {(category != null || badgeType != null) && (
+                                        <div className={styles.sapOrderNoCellRight}>
+                                          {category != null && <span className={styles.sapOrderNoCategory}>{category}</span>}
+                                          {category != null && badgeType != null && <span className={styles.sapOrderNoCellSep}>|</span>}
+                                          {badgeType != null && (
+                                            <span
+                                              className={
+                                                badgeType === '지역' ? styles.shipmentPillRegion : styles.shipmentPillFactory
+                                              }
+                                            >
+                                              {badgeType}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                   ) : (
                                     <div key={i} className={styles.sapOrderNoLine}>{line}</div>
@@ -625,9 +654,9 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
           <div className={styles.contentSection}>
             <div className={styles.sectionTitleBar}>
               <span className={styles.sectionTitle}>관리자 메모</span>
+              <span className={styles.memoTitleHint}>운영팀과 소통을 위한 메모입니다.</span>
             </div>
             <div className={styles.sectionBody}>
-              <p className={styles.memoDesc}>운영팀과 소통을 위한 메모입니다. 작성한 메모만 수정·삭제할 수 있습니다.</p>
               <ul className={styles.memoList}>
                 {memos.map((memo) => (
                   <li key={memo.id} className={styles.memoItem}>

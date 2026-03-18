@@ -504,8 +504,79 @@
 
 .table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
   font-size: 13px;
+}
+
+/* 고정 컬럼: 체크박스, 주문번호, 주문상태 (가로 스크롤 시 고정) */
+.colSticky1 {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #f5f7fa;
+  box-shadow: 4px 0 4px -2px rgba(0, 0, 0, 0.06);
+  min-width: 44px;
+  width: 44px;
+  box-sizing: border-box;
+}
+
+.table tbody .colSticky1 {
+  background: #fff;
+}
+
+.table tbody tr:hover .colSticky1 {
+  background: #f8f9fb;
+}
+
+.table tbody tr.rowHighlight .colSticky1 {
+  background: #ffebe5;
+}
+
+.colSticky2 {
+  position: sticky;
+  left: 44px;
+  z-index: 2;
+  background: #f5f7fa;
+  box-shadow: 4px 0 4px -2px rgba(0, 0, 0, 0.06);
+  min-width: 130px;
+  width: 130px;
+  box-sizing: border-box;
+}
+
+.table tbody .colSticky2 {
+  background: #fff;
+}
+
+.table tbody tr:hover .colSticky2 {
+  background: #f8f9fb;
+}
+
+.table tbody tr.rowHighlight .colSticky2 {
+  background: #ffebe5;
+}
+
+.colSticky3 {
+  position: sticky;
+  left: 174px;
+  z-index: 2;
+  background: #f5f7fa;
+  box-shadow: 4px 0 4px -2px rgba(0, 0, 0, 0.06);
+  min-width: 100px;
+  width: 100px;
+  box-sizing: border-box;
+}
+
+.table tbody .colSticky3 {
+  background: #fff;
+}
+
+.table tbody tr:hover .colSticky3 {
+  background: #f8f9fb;
+}
+
+.table tbody tr.rowHighlight .colSticky3 {
+  background: #ffebe5;
 }
 
 .table input[type="checkbox"] {
