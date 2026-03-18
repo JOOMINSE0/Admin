@@ -529,10 +529,6 @@
   background: #f8f9fb;
 }
 
-.table tbody tr.rowHighlight .colSticky1 {
-  background: #ffebe5;
-}
-
 .colSticky2 {
   position: sticky;
   left: 44px;
@@ -552,10 +548,6 @@
   background: #f8f9fb;
 }
 
-.table tbody tr.rowHighlight .colSticky2 {
-  background: #ffebe5;
-}
-
 .colSticky3 {
   position: sticky;
   left: 174px;
@@ -573,10 +565,6 @@
 
 .table tbody tr:hover .colSticky3 {
   background: #f8f9fb;
-}
-
-.table tbody tr.rowHighlight .colSticky3 {
-  background: #ffebe5;
 }
 
 .table input[type="checkbox"] {
@@ -626,10 +614,6 @@
 
 .orderNoLink:hover {
   color: #e03f0c;
-}
-
-.rowHighlight {
-  background: #ffebe5 !important;
 }
 
 /* Pagination */
