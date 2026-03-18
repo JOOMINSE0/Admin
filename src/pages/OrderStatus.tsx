@@ -96,10 +96,9 @@ const REGION_TREE: Record<string, Record<string, string[]>> = {
 }
 const SIDO_OPTIONS = [PLACEHOLDER_SIDO, ...Object.keys(REGION_TREE).filter((k) => k !== PLACEHOLDER_SIDO)]
 
-type StatusKey = 'all' | 'order_complete' | 'payment_complete' | 'preparing' | 'shipped' | 'order_cancel'
+type StatusKey = 'all' | 'payment_complete' | 'preparing' | 'shipped' | 'order_cancel'
 const statusSteps: { key: StatusKey; label: string; icon: string; color: string }[] = [
   { key: 'all', label: '전체', icon: '', color: '#607d8b' },
-  { key: 'order_complete', label: '주문 완료', icon: '', color: '#5c9ead' },
   { key: 'payment_complete', label: '결제완료', icon: '', color: '#4caf50' },
   { key: 'preparing', label: '발송 준비중', icon: '', color: '#ff9800' },
   { key: 'shipped', label: '발송 완료', icon: '', color: '#e91e63' },
@@ -108,7 +107,6 @@ const statusSteps: { key: StatusKey; label: string; icon: string; color: string 
 
 // 상태 버튼 키 → 주문내역 orderStatus 문자열 매칭
 const STATUS_KEY_TO_ORDER_STATUS: Record<Exclude<StatusKey, 'all'>, string> = {
-  order_complete: '주문 완료',
   payment_complete: '결제완료',
   preparing: '발송 준비중',
   shipped: '발송 완료',
@@ -118,7 +116,6 @@ const STATUS_KEY_TO_ORDER_STATUS: Record<Exclude<StatusKey, 'all'>, string> = {
 /** 전체 현황에서만 사용: 주문 상태값 드롭다운 옵션 (value는 orderStatus 매칭용, ''=전체) */
 const ALL_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: '전체' },
-  { value: '주문 완료', label: '주문 완료' },
   { value: '결제완료', label: '결제 완료' },
   { value: '발송 준비중', label: '발송 준비중' },
   { value: '발송 완료', label: '발송 완료' },
@@ -209,6 +206,12 @@ const mockOrders = [
 
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10)
+}
+
+function addDays(base: Date, days: number) {
+  const d = new Date(base)
+  d.setDate(d.getDate() + days)
+  return d
 }
 
 type OrderRow = (typeof mockOrders)[number]
@@ -395,7 +398,6 @@ function downloadOrderExcel(orders: OrderRow[]) {
 function getStatusCounts(orders: OrderRow[]): Record<StatusKey, number> {
   const counts: Record<StatusKey, number> = {
     all: orders.length,
-    order_complete: 0,
     payment_complete: 0,
     preparing: 0,
     shipped: 0,
@@ -409,9 +411,12 @@ function getStatusCounts(orders: OrderRow[]): Record<StatusKey, number> {
 }
 
 export default function OrderStatus() {
+  const today = new Date()
+  const initialDateTo = formatDate(today)
+  const initialDateFrom = formatDate(addDays(today, -7))
   const [tab, setTab] = useState<'order' | 'bundle'>('order')
-  const [dateFrom, setDateFrom] = useState('2026-03-06')
-  const [dateTo, setDateTo] = useState('2026-03-13')
+  const [dateFrom, setDateFrom] = useState(initialDateFrom)
+  const [dateTo, setDateTo] = useState(initialDateTo)
   const [activeStatus, setActiveStatus] = useState<StatusKey>('all')
   const [plusExclusiveY, setPlusExclusiveY] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -431,8 +436,6 @@ export default function OrderStatus() {
   const [shippedDateBasis, setShippedDateBasis] = useState<'order' | 'payment' | 'shipped'>('order')
   /** 전체 현황에서만: 주문 상태값 필터 ('')=전체 */
   const [allStatusFilter, setAllStatusFilter] = useState('')
-  const initialDateFrom = '2026-03-06'
-  const initialDateTo = '2026-03-13'
 
   const resetAllFilters = () => {
     setDateFrom(initialDateFrom)
@@ -729,7 +732,7 @@ export default function OrderStatus() {
               <select className={styles.select} value={deposit} onChange={(e) => setDeposit(e.target.value)}>
                 <option value="전체">전체</option>
                 <option value="구매(즉시할인 포함)">구매(즉시할인 포함)</option>
-                <option value="구매(즉시할인 제외)">구매(즉시할인 제외)</option>
+                <option value="구매(즉시할인 미포함)">구매(즉시할인 미포함)</option>
                 <option value="제외">제외</option>
               </select>
             </div>
@@ -826,6 +829,11 @@ export default function OrderStatus() {
             {activeStatus === 'preparing' && (
               <button type="button" className={styles.btnShipComplete}>
                 발송완료 처리
+              </button>
+            )}
+            {activeStatus === 'shipped' && (
+              <button type="button" className={styles.btnShipPrepare}>
+                발송 준비중 처리
               </button>
             )}
           </div>
