@@ -473,6 +473,17 @@
   font-size: 13px;
 }
 
+.sapOrderNoInnerTable th.sapOrderNoThFieldLabels {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  padding-top: 8px;
+  padding-bottom: 10px;
+  background: #f8f9fb;
+  letter-spacing: -0.02em;
+  border-top: none;
+}
+
 .sapOrderNoInnerTable th.sapOrderNoThOtcEtc {
   font-size: 12px;
   font-weight: 500;
@@ -509,11 +520,51 @@
   color: #333;
 }
 
+.sapOrderNoInnerTable td.sapOrderNoTd {
+  text-align: center;
+  vertical-align: middle;
+}
+
 .sapOrderNoThLabel {
   margin-top: 6px;
   font-size: 11px;
   font-weight: 500;
   color: #666;
+}
+
+/* SAP 주문 정보: 공급사별 블록 (오더/납품/빌링 + OTC|제약) */
+.sapOrderBlock {
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed #e8e8e8;
+  text-align: center;
+}
+
+.sapOrderBlock:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.sapOrderBlockNumbers {
+  font-size: 13px;
+  font-weight: 500;
+  color: #222;
+  line-height: 1.45;
+  margin-bottom: 8px;
+  white-space: normal;
+  word-break: break-all;
+  text-align: center;
+}
+
+.sapOrderBlockOtcRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  font-size: 13px;
 }
 
 .sapOrderNoCellWrap {

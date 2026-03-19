@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import CollapsibleSection from '../components/CollapsibleSection'
-import OrderDetailModal, { type OrderDetailData } from '../components/OrderDetailModal'
+import OrderDetailModal, { getSupplierOrderStatusFromSap, type OrderDetailData } from '../components/OrderDetailModal'
 import styles from './OrderPage.module.css'
 
 const breadcrumb = ['홈', '주문관리', '주문현황']
@@ -68,7 +68,7 @@ const supplierOptions = [
   '서진팜',
 ]
 
-const searchTypeOptions = ['약국명', '주문번호', '회원 아이디', '고객명', '상품명']
+const searchTypeOptions = ['약국명', '주문번호', '회원 아이디', '유저키', '사업자번호', '고객명', '상품명']
 
 /** 발송준비중 배송지역 필터 (시도 → 구군 → 읍면동) */
 const PLACEHOLDER_SIDO = '-시도-'
@@ -126,6 +126,65 @@ const ALL_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
 // 발송완료 하드코딩 주문 (상세 팝업에서 이미지 기준 데이터 표시)
 const SHIPPED_ORDER_NO = 'P01041161391'
 
+// JSON 기반 다중 공급사 주문 (상세 팝업 데이터)
+const MULTI_SUPPLIER_ORDER_NO = 'PO1041161391'
+/** 상세·목록 주문일시 (API 연동 시 동일 JSON의 orderDate) */
+const MULTI_SUPPLIER_ORDER_DATE = '2026-03-19 13:59:17'
+
+/** 공급사별 SAP 라인 (상세 SAP 주문 정보 표시용, 기존 오더/납품/빌링 + (이슈)(상태) 형식) */
+type MultiSupplierSapLine = { type: 'OTC' | 'ETC'; sapNo: string; qty: number; issue: string; status: string }
+
+const MULTI_SUPPLIER_SAP_BY_SUPPLIER: Record<string, MultiSupplierSapLine[]> = {
+  /** 대웅제약만 주문상태 결제완료 (공급사별 상태 상이 시나리오용) */
+  대웅제약: [
+    { type: 'OTC', sapNo: '1510223871', qty: 7, issue: '재고입고미지연', status: '결제완료' },
+    { type: 'OTC', sapNo: '1510223871', qty: 6, issue: '상품 피크, 출고 후순위', status: '결제완료' },
+  ],
+  대웅바이오: [
+    { type: 'ETC', sapNo: '1510223889', qty: 9, issue: '압송중 제품/상품 피크', status: '일부완료' },
+    { type: 'ETC', sapNo: '1510223870', qty: 7, issue: '수도권', status: '출하완료' },
+  ],
+  한올바이오파마: [
+    { type: 'ETC', sapNo: '1510223872', qty: 2, issue: '재고입고미지연', status: '출하완료' },
+  ],
+}
+
+function formatMultiSupplierSapLine(line: MultiSupplierSapLine, isFirstInSupplier: boolean): string {
+  const prefix =
+    line.type === 'ETC'
+      ? isFirstInSupplier
+        ? 'ETC(바):'
+        : 'ETC:'
+      : isFirstInSupplier
+        ? 'OTC(제):'
+        : 'OTC:'
+  return `${prefix} 오더(${line.sapNo}) / 납품(-) / 빌링(-) / (${line.issue}, 수량${line.qty}건)(${line.status})`
+}
+
+function buildSapOrderNoBySupplierFromMultiJson(): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [supplier, lines] of Object.entries(MULTI_SUPPLIER_SAP_BY_SUPPLIER)) {
+    out[supplier] = lines.map((l, i) => formatMultiSupplierSapLine(l, i === 0)).join('\n')
+  }
+  return out
+}
+
+const MULTI_SUPPLIER_ORDER_ITEMS = [
+  { supplier: '대웅제약', type: '전문의약품', name: '디애타민정 25mg', price: 22546, qty: 3, amount: 67638 },
+  { supplier: '대웅제약', type: '일반의약품', name: '코메정 500mg', price: 11000, qty: 5, amount: 55000 },
+  { supplier: '대웅제약', type: '전문의약품', name: '페브릭정 40mg', price: 18300, qty: 2, amount: 36600 },
+  { supplier: '대웅제약', type: '전문의약품', name: '페브릭정 80mg', price: 18300, qty: 3, amount: 54900 },
+  { supplier: '대웅제약', type: '일반의약품', name: '우루사 100mg', price: 33000, qty: 1, amount: 33000 },
+  { supplier: '대웅제약', type: '전문의약품', name: '우루사정 200mg', price: 18000, qty: 20, amount: 360000 },
+  { supplier: '대웅바이오', type: '전문의약품', name: '글리아티린연질캡슐 400mg', price: 42840, qty: 2, amount: 85680 },
+  { supplier: '대웅바이오', type: '전문의약품', name: '디포린정 80mg', price: 44600, qty: 10, amount: 446000 },
+  { supplier: '대웅바이오', type: '전문의약품', name: '디포린정 30mg', price: 13380, qty: 8, amount: 107040 },
+  { supplier: '대웅바이오', type: '전문의약품', name: '베아릴드정 5mg', price: 55650, qty: 3, amount: 166950 },
+  { supplier: '한올바이오파마', type: '전문의약품', name: '바노롤캡슐 300mg', price: 16200, qty: 3, amount: 48600 },
+  { supplier: '한올바이오파마', type: '전문의약품', name: '엑시드정 40mg', price: 93900, qty: 5, amount: 469500 },
+] as const
+const MULTI_SUPPLIER_ORDER_TOTAL = MULTI_SUPPLIER_ORDER_ITEMS.reduce((s, i) => s + i.amount, 0)
+
 const mockOrders = [
   {
     id: 0,
@@ -148,6 +207,8 @@ const mockOrders = [
     orderStatus: '발송 완료',
     memo: '',
     memberId: 'grpharm',
+    userKey: 'grpharm',
+    businessNo: '104-05-47262',
   },
   {
     id: 1,
@@ -170,6 +231,32 @@ const mockOrders = [
     orderStatus: '발송 완료',
     memo: 'N',
     memberId: 'test01',
+    userKey: 'test01',
+    businessNo: '120-86-00011',
+  },
+  {
+    id: 2,
+    orderNo: MULTI_SUPPLIER_ORDER_NO,
+    supplier: '대웅제약',
+    productName: '디애타민정 25mg 외',
+    pharmacyName: '가람약국',
+    customerName: '신혜선',
+    memberPaymentMethod: '선결제회원',
+    orderAmount: MULTI_SUPPLIER_ORDER_TOTAL,
+    salesAmount: MULTI_SUPPLIER_ORDER_TOTAL,
+    supplyAmount: Math.floor(MULTI_SUPPLIER_ORDER_TOTAL * 0.91),
+    tax: Math.floor(MULTI_SUPPLIER_ORDER_TOTAL * 0.09),
+    paymentAmount: MULTI_SUPPLIER_ORDER_TOTAL,
+    finalAmount: 0,
+    paymentMethod: '예치금',
+    orderDateTime: MULTI_SUPPLIER_ORDER_DATE,
+    paymentDateTime: MULTI_SUPPLIER_ORDER_DATE,
+    shippedCompleteDateTime: MULTI_SUPPLIER_ORDER_DATE,
+    orderStatus: '결제완료',
+    memo: '',
+    memberId: 'grpharm',
+    userKey: 'grpharm',
+    businessNo: '104-05-47262',
   },
   ...Array.from({ length: 10 }, (_, i) => {
     const statuses: string[] = ['주문 완료', '주문 완료', '주문 완료', '결제완료', '결제완료', '결제완료', '결제완료', '발송 준비중', '발송 준비중', '발송 준비중']
@@ -181,7 +268,7 @@ const mockOrders = [
     const r = regions[i % 3]
     const isPreparing = statuses[i] === '발송 준비중'
     return {
-      id: i + 2,
+      id: i + 3,
       orderNo: `P0104141687${8 + i}`,
       supplier: ['대표제약', '다원약품', '대웅제약'][i % 3],
       productName: `상품${i + 1}`,
@@ -199,6 +286,8 @@ const mockOrders = [
       orderStatus: statuses[i],
       memo: 'N',
       memberId: `user${i + 2}`,
+      userKey: `user${i + 2}`,
+      businessNo: '120-86-00011',
       ...(isPreparing ? { deliverySido: r.deliverySido, deliveryGugun: r.deliveryGugun, deliveryEup: r.deliveryEup } : {}),
     }
   }),
@@ -206,12 +295,6 @@ const mockOrders = [
 
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10)
-}
-
-function addDays(base: Date, days: number) {
-  const d = new Date(base)
-  d.setDate(d.getDate() + days)
-  return d
 }
 
 type OrderRow = (typeof mockOrders)[number]
@@ -278,7 +361,88 @@ function bundleOrders(rows: OrderRow[]): OrderRow[] {
   }))
 }
 
+/** 주문일시 기준 최신순(내림차순). 동일 시각이면 주문번호로 보조 정렬 */
+function sortOrdersByLatest(rows: OrderRow[]): OrderRow[] {
+  return [...rows].sort((a, b) => {
+    const byDt = b.orderDateTime.localeCompare(a.orderDateTime)
+    if (byDt !== 0) return byDt
+    return String(b.orderNo).localeCompare(String(a.orderNo))
+  })
+}
+
 function getOrderDetail(row: OrderRow): OrderDetailData {
+  if (row.orderNo === MULTI_SUPPLIER_ORDER_NO) {
+    const orderWhen = MULTI_SUPPLIER_ORDER_DATE
+    const datePart = orderWhen.slice(0, 10)
+    const sapOrderNoBySupplier = buildSapOrderNoBySupplierFromMultiJson()
+    const sapShipmentTypeBySupplier: Record<string, '지역' | '공장'> = {
+      대웅제약: '지역',
+      대웅바이오: '공장',
+      한올바이오파마: '공장',
+    }
+    const sapCategoryBySupplier: Record<string, 'OTC' | 'ETC'> = {
+      대웅제약: 'OTC',
+      대웅바이오: 'ETC',
+      한올바이오파마: 'ETC',
+    }
+    const products = MULTI_SUPPLIER_ORDER_ITEMS.map((item) => ({
+      supplierName: item.supplier,
+      expectedDeliveryDate: datePart,
+      category: item.type,
+      productSpec: item.name,
+      manufacturer: `${item.supplier}(주)`,
+      sellingPrice: `${item.price.toLocaleString()}원`,
+      orderQty: String(item.qty),
+      subtotal: `${item.amount.toLocaleString()}원`,
+      shippingCost: '0원',
+    }))
+    const supplierTotals = MULTI_SUPPLIER_ORDER_ITEMS.reduce<Record<string, number>>((acc, item) => {
+      acc[item.supplier] = (acc[item.supplier] ?? 0) + item.amount
+      return acc
+    }, {})
+    const supplierSummary = Object.entries(supplierTotals).map(([supplier, totalAmount]) => ({
+      supplier,
+      totalAmount: `${totalAmount.toLocaleString()}원`,
+      shippingCost: '0원',
+      otcDiscount: '0원',
+      costDiscount: '0원',
+      mileageUsed: '0원',
+    }))
+    return {
+      orderNo: MULTI_SUPPLIER_ORDER_NO,
+      sapOrderNo: Object.values(sapOrderNoBySupplier).join('\n'),
+      sapOrderNoBySupplier,
+      sapShipmentTypeBySupplier,
+      sapCategoryBySupplier,
+      orderDateTime: orderWhen,
+      orderStatus: '결제완료',
+      orderStatusDate: orderWhen,
+      totalOrderAmount: MULTI_SUPPLIER_ORDER_TOTAL,
+      orderIdEmail: 'grpharm / grpharm@example.com',
+      paymentMethod: '예치금',
+      products,
+      supplierSummary,
+      paymentSummary: [
+        {
+          minusBalance: '0원',
+          supplierCoupon: '0원',
+          paymentAmount: `${MULTI_SUPPLIER_ORDER_TOTAL.toLocaleString()}원`,
+          earnedMileage: '0원',
+          expectedDeposit: '0원',
+        },
+      ],
+      customer: {
+        recipient: '가람약국 (신혜선)',
+        contact: '031-557-5050 / 010-5699-8647',
+        businessNo: '104-05-47262',
+        medicalCode: '31894721',
+        address: '(12260) 경기도 남양주시 도농로 1(도농동) 53-4',
+      },
+      vendorMessage: '',
+      adminMemos: [],
+    }
+  }
+
   if (row.orderNo === SHIPPED_ORDER_NO) {
     const sapLines = [
       `OTC(제): 오더(1510223871) / 납품(8012986009) / 빌링(9015844142) / ([거점] 김포이지메디컴)(출하완료)`,
@@ -415,6 +579,27 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
   }
 }
 
+/**
+ * 목록/엑셀 주문상태 표시.
+ * 공급사가 여럿이어도 상태가 모두 같으면 일반 상태를 쓰고,
+ * 공급사별 주문상태가 서로 다를 때만 `공급사별 상태 상이` (상세주문정보와 동일 규칙).
+ */
+function getOrderStatusListLabel(row: OrderRow): string {
+  const detail = getOrderDetail(row)
+  const supplierNames = Array.from(new Set(detail.products.map((p) => p.supplierName).filter(Boolean)))
+  if (supplierNames.length <= 1) return row.orderStatus
+
+  const perSupplier = supplierNames.map((name) =>
+    getSupplierOrderStatusFromSap({
+      sapOrderNoBySupplier: detail.sapOrderNoBySupplier,
+      supplierName: name,
+      fallbackOrderStatus: detail.orderStatus,
+    })
+  )
+  if (new Set(perSupplier).size > 1) return '공급사별 상태 상이'
+  return row.orderStatus
+}
+
 const EXCEL_HEADERS = [
   '주문번호', '공급처', '상품명', '약국명', '고객명', '회원결제방식',
   '주문금액', '매출액', '공급가액', '부가세', '결제금액', '최종결제금액',
@@ -456,36 +641,30 @@ function downloadOrderExcel(orders: OrderRow[]) {
   URL.revokeObjectURL(url)
 }
 
-// 상태별 건수: 주문내역 orderStatus와 매칭해 실제 건수 사용
-function getStatusCounts(orders: OrderRow[]): Record<StatusKey, number> {
-  const counts: Record<StatusKey, number> = {
-    all: orders.length,
-    payment_complete: 0,
-    preparing: 0,
-    shipped: 0,
-    order_cancel: 0,
-  }
-  orders.forEach((o) => {
-    const key = (Object.entries(STATUS_KEY_TO_ORDER_STATUS).find(([, v]) => v === o.orderStatus)?.[0] as Exclude<StatusKey, 'all'>) ?? null
-    if (key && key in counts) counts[key]++
-  })
-  return counts
-}
-
 export default function OrderStatus() {
   const today = new Date()
   const initialDateTo = formatDate(today)
-  const initialDateFrom = formatDate(addDays(today, -7))
+  const initialDateFrom = formatDate(today)
   const [tab, setTab] = useState<'order' | 'bundle'>('order')
   const [dateFrom, setDateFrom] = useState(initialDateFrom)
   const [dateTo, setDateTo] = useState(initialDateTo)
   const [activeStatus, setActiveStatus] = useState<StatusKey>('all')
+  type DateRange = { from: string; to: string }
+  const [dateRangeByStatus, setDateRangeByStatus] = useState<Record<StatusKey, DateRange>>(() => ({
+    all: { from: initialDateFrom, to: initialDateTo },
+    payment_complete: { from: initialDateFrom, to: initialDateTo },
+    preparing: { from: initialDateFrom, to: initialDateTo },
+    shipped: { from: initialDateFrom, to: initialDateTo },
+    order_cancel: { from: initialDateFrom, to: initialDateTo },
+  }))
   const [plusExclusiveY, setPlusExclusiveY] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailOpen, setDetailOpen] = useState<OrderDetailData | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   /** 주문번호별 상태 오버라이드 (주문 취소 버튼 등으로 변경된 상태) */
   const [orderStatusOverrides, setOrderStatusOverrides] = useState<Record<string, string>>({})
+  /** 검색 초기화 후 재조회 실패 여부 알럿 처리용 */
+  const [resetNonce, setResetNonce] = useState(0)
 
   const [supplier, setSupplier] = useState(supplierOptions[0])
   const [searchType2, setSearchType2] = useState('약국명')
@@ -499,19 +678,54 @@ export default function OrderStatus() {
   /** 전체 현황에서만: 주문 상태값 필터 ('')=전체 */
   const [allStatusFilter, setAllStatusFilter] = useState('')
 
+  const dateRangeError = (() => {
+    if (!dateFrom || !dateTo) return '조회 기간을 올바르게 입력해주세요.'
+    if (dateFrom > dateTo) return '시작일은 종료일보다 늦을 수 없습니다.'
+    return ''
+  })()
+
+  const lastDateErrorAlertKeyRef = useRef<string>('')
+  useEffect(() => {
+    const shouldAlert = dateRangeError === '시작일은 종료일보다 늦을 수 없습니다.'
+    if (!shouldAlert) return
+    const key = `${dateFrom}~${dateTo}`
+    if (lastDateErrorAlertKeyRef.current === key) return
+    lastDateErrorAlertKeyRef.current = key
+    window.alert(dateRangeError)
+  }, [dateRangeError, dateFrom, dateTo])
+
+  // 탭(주문 상태) 변경 시 해당 탭의 날짜 기본값을 UI에 반영
+  useEffect(() => {
+    const r = dateRangeByStatus[activeStatus]
+    if (r) {
+      setDateFrom(r.from)
+      setDateTo(r.to)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStatus])
+
   const resetAllFilters = () => {
-    setDateFrom(initialDateFrom)
-    setDateTo(initialDateTo)
-    setSupplier(supplierOptions[0])
-    setSearchType2('약국명')
-    setSearchKeyword2('')
-    setDeposit('전체')
-    setPlusExclusiveY(false)
-    setDeliverySido(PLACEHOLDER_SIDO)
-    setDeliveryGugun(PLACEHOLDER_GUGUN)
-    setDeliveryEup(PLACEHOLDER_EUP)
-    setShippedDateBasis('order')
-    setAllStatusFilter('')
+    try {
+      setDateFrom(initialDateFrom)
+      setDateTo(initialDateTo)
+      setDateRangeByStatus((prev) => ({
+        ...prev,
+        [activeStatus]: { from: initialDateFrom, to: initialDateTo },
+      }))
+      setSupplier(supplierOptions[0])
+      setSearchType2('약국명')
+      setSearchKeyword2('')
+      setDeposit('전체')
+      setPlusExclusiveY(false)
+      setDeliverySido(PLACEHOLDER_SIDO)
+      setDeliveryGugun(PLACEHOLDER_GUGUN)
+      setDeliveryEup(PLACEHOLDER_EUP)
+      setShippedDateBasis('order')
+      setAllStatusFilter('')
+      setResetNonce((n) => n + 1)
+    } catch {
+      window.alert('초기화 중 오류가 발생했습니다. 다시 시도해주세요.')
+    }
   }
 
   const gugunOptions =
@@ -567,21 +781,215 @@ export default function OrderStatus() {
     }
     return d >= dateFrom && d <= dateTo
   }
-  if (activeStatus === 'shipped') {
+
+  const orderInRange = (row: OrderRow) => {
+    const d = row.orderDateTime.slice(0, 10)
+    return d >= dateFrom && d <= dateTo
+  }
+
+  const orderInRangeWith = (row: OrderRow, from: string, to: string) => {
+    const d = row.orderDateTime.slice(0, 10)
+    return d >= from && d <= to
+  }
+
+  const shippedInRangeWith = (
+    row: OrderRow,
+    basis: 'order' | 'payment' | 'shipped',
+    from: string,
+    to: string
+  ) => {
+    const r = row as RowWithShippedDates
+    let d: string
+    if (basis === 'order') d = row.orderDateTime.slice(0, 10)
+    else if (basis === 'payment') d = (r.paymentDateTime ?? row.orderDateTime).slice(0, 10)
+    else d = (r.shippedCompleteDateTime ?? row.orderDateTime).slice(0, 10)
+    return d >= from && d <= to
+  }
+
+  const isValidDateRange = (from: string, to: string) => !!from && !!to && from <= to
+
+  if (dateRangeError) {
+    filteredOrders = []
+  } else if (activeStatus === 'shipped') {
     filteredOrders = filteredOrders.filter(shippedInRange)
+  } else {
+    // 기본(전체/주문완료/결제완료/준비중/주문취소 등): 주문일자 기준으로 본다
+    filteredOrders = filteredOrders.filter(orderInRange)
+  }
+
+  // 검색타입/검색어 필터
+  const keywordRaw = searchKeyword2
+  const keyword = keywordRaw.trim()
+  const searchKeywordError =
+    keywordRaw.length > 0 && keyword.length === 0 ? '검색어를 확인해주세요.' : ''
+
+  const isOrderNoLike = (s: string) => /^P?\d{6,}$/.test(s.replace(/\s/g, ''))
+  const isBusinessNoLike = (s: string) => {
+    const v = s.replace(/\s/g, '')
+    return /^\d{10}$/.test(v) || /^\d{3}-\d{2}-\d{5}$/.test(v)
+  }
+  const isAlphaNumLike = (s: string) => /^[a-zA-Z0-9_-]+$/.test(s.replace(/\s/g, ''))
+
+  const searchTypeMismatchError = (() => {
+    if (keyword === '') return ''
+    if (searchKeywordError) return ''
+
+    if (searchType2 === '약국명' || searchType2 === '고객명' || searchType2 === '상품명') {
+      if (isOrderNoLike(keyword) || isBusinessNoLike(keyword)) return '검색타입과 검색어가 일치하지 않습니다.'
+      return ''
+    }
+    if (searchType2 === '주문번호') {
+      return isOrderNoLike(keyword) ? '' : '검색타입과 검색어가 일치하지 않습니다.'
+    }
+    if (searchType2 === '사업자번호') {
+      return isBusinessNoLike(keyword) ? '' : '검색타입과 검색어가 일치하지 않습니다.'
+    }
+    if (searchType2 === '회원 아이디' || searchType2 === '유저키') {
+      return isAlphaNumLike(keyword) ? '' : '검색타입과 검색어가 일치하지 않습니다.'
+    }
+    return ''
+  })()
+
+  const lastMismatchAlertKeyRef = useRef<string>('')
+  useEffect(() => {
+    if (!searchTypeMismatchError) return
+    if (keyword === '') return
+    const key = `${searchType2}|${keyword}`
+    if (lastMismatchAlertKeyRef.current === key) return
+    lastMismatchAlertKeyRef.current = key
+    window.alert(searchTypeMismatchError)
+  }, [searchTypeMismatchError, keyword, searchType2])
+
+  if (searchKeywordError) {
+    filteredOrders = []
+  } else if (searchTypeMismatchError) {
+    filteredOrders = []
+  } else if (keyword !== '') {
+    const k = keyword.toLowerCase()
+    filteredOrders = filteredOrders.filter((row) => {
+      const rAny = row as any
+      if (searchType2 === '약국명') return String(row.pharmacyName ?? '-').toLowerCase().includes(k)
+      if (searchType2 === '주문번호') return String(row.orderNo ?? '-').toLowerCase().includes(k)
+      if (searchType2 === '고객명') return String(row.customerName ?? '-').toLowerCase().includes(k)
+      if (searchType2 === '상품명') return String(row.productName ?? '-').toLowerCase().includes(k)
+
+      // 정확 검색 우선
+      if (searchType2 === '회원 아이디') return String(row.memberId ?? '').toLowerCase() === k
+      if (searchType2 === '유저키') return String(rAny.userKey ?? '').toLowerCase() === k
+      if (searchType2 === '사업자번호') return String(rAny.businessNo ?? '').toLowerCase() === k
+      return true
+    })
   }
 
   // 묶음주문기준 적용: 목록/건수/요약/페이지네이션 재조회 기준이 되는 데이터
-  const displayedOrders = tab === 'bundle' ? bundleOrders(filteredOrders) : filteredOrders
+  // 모든 탭·묶음 여부와 관계없이 주문일시 최신순으로 표시
+  const displayedOrders = sortOrdersByLatest(
+    tab === 'bundle' ? bundleOrders(filteredOrders) : filteredOrders
+  )
 
-  const statusCounts = getStatusCounts(ordersWithOverrides)
-  // 발송완료 탭 건수: 기간 필터 적용 후 건수로 표시 (기본 기간에 0건이면 0건으로 표시)
-  const shippedCountInRange = ordersWithOverrides
-    .filter((o) => o.orderStatus === STATUS_KEY_TO_ORDER_STATUS.shipped)
-    .filter(shippedInRange).length
+  const matchesSearch = (row: OrderRow, k: string): boolean => {
+    const rAny = row as any
+    if (searchType2 === '약국명') return String(row.pharmacyName ?? '-').toLowerCase().includes(k)
+    if (searchType2 === '주문번호') return String(row.orderNo ?? '-').toLowerCase().includes(k)
+    if (searchType2 === '고객명') return String(row.customerName ?? '-').toLowerCase().includes(k)
+    if (searchType2 === '상품명') return String(row.productName ?? '-').toLowerCase().includes(k)
+
+    // 정확 검색 우선
+    if (searchType2 === '회원 아이디') return String(row.memberId ?? '').toLowerCase() === k
+    if (searchType2 === '유저키') return String(rAny.userKey ?? '').toLowerCase() === k
+    if (searchType2 === '사업자번호') return String(rAny.businessNo ?? '').toLowerCase() === k
+    return true
+  }
+
+  // 상단 탭 건수: "검색해서 나온 주문내역" 개수 기준으로 동적 업데이트
+  const countMaybeBundle = (rows: OrderRow[]) => (tab === 'bundle' ? bundleOrders(rows).length : rows.length)
+
+  // resetNonce 직후에도 유효성 오류가 남아있으면 "재조회 실패"로 간주해 알럿 표시
+  useEffect(() => {
+    if (resetNonce <= 0) return
+    // 이미 시작일/종료일 비교에 대한 알럿은 별도 처리 중이므로 그 케이스는 제외
+    const isStartEndMismatch = dateRangeError === '시작일은 종료일보다 늦을 수 없습니다.'
+    const hasFailure =
+      !isStartEndMismatch && (dateRangeError !== '' || searchKeywordError !== '')
+    if (hasFailure) {
+      window.alert('초기화 중 오류가 발생했습니다. 다시 시도해주세요.')
+    }
+    setResetNonce(0)
+  }, [resetNonce, dateRangeError, searchKeywordError])
+
+  const ordersForCountsBase = (() => {
+    if (searchKeywordError) return [] as OrderRow[]
+
+    let base = ordersWithOverrides.slice()
+
+    const keyword = searchKeyword2.trim()
+    if (keyword !== '') {
+      const k = keyword.toLowerCase()
+      base = base.filter((r) => matchesSearch(r, k))
+    }
+
+    return base
+  })()
+
+  const allRange = dateRangeByStatus.all
+  const paymentRange = dateRangeByStatus.payment_complete
+  const preparingRange = dateRangeByStatus.preparing
+  const shippedRange = dateRangeByStatus.shipped
+  const orderCancelRange = dateRangeByStatus.order_cancel
+
+  const ordersForAll = allStatusFilter !== '' ? ordersForCountsBase.filter((o) => o.orderStatus === allStatusFilter) : ordersForCountsBase
+
+  // 전체 탭: 주문일자(orderDateTime) 기준으로 본다
+  const allCountRows =
+    isValidDateRange(allRange.from, allRange.to)
+      ? ordersForAll.filter((o) => orderInRangeWith(o, allRange.from, allRange.to))
+      : []
+  const allCount = countMaybeBundle(allCountRows)
+
+  const paymentRows =
+    ordersForCountsBase.filter((o) => o.orderStatus === STATUS_KEY_TO_ORDER_STATUS.payment_complete) || []
+  const paymentCountRows =
+    isValidDateRange(paymentRange.from, paymentRange.to)
+      ? paymentRows.filter((o) => orderInRangeWith(o, paymentRange.from, paymentRange.to))
+      : []
+  const paymentCompleteCount = countMaybeBundle(paymentCountRows)
+
+  let preparingCountRows = ordersForCountsBase.filter((o) => o.orderStatus === STATUS_KEY_TO_ORDER_STATUS.preparing)
+  if (deliverySido !== PLACEHOLDER_SIDO) {
+    preparingCountRows = preparingCountRows.filter((o) => (o as any).deliverySido === deliverySido)
+  }
+  if (deliveryGugun !== PLACEHOLDER_GUGUN) {
+    preparingCountRows = preparingCountRows.filter((o) => (o as any).deliveryGugun === deliveryGugun)
+  }
+  if (deliveryEup !== PLACEHOLDER_EUP) {
+    preparingCountRows = preparingCountRows.filter((o) => (o as any).deliveryEup === deliveryEup)
+  }
+  const preparingCountRowsInDate =
+    isValidDateRange(preparingRange.from, preparingRange.to)
+      ? preparingCountRows.filter((o) => orderInRangeWith(o, preparingRange.from, preparingRange.to))
+      : []
+  const preparingCount = countMaybeBundle(preparingCountRowsInDate)
+
+  const shippedRows = ordersForCountsBase.filter((o) => o.orderStatus === STATUS_KEY_TO_ORDER_STATUS.shipped)
+  const shippedCountRowsInDate =
+    isValidDateRange(shippedRange.from, shippedRange.to)
+      ? shippedRows.filter((o) => shippedInRangeWith(o, shippedDateBasis, shippedRange.from, shippedRange.to))
+      : []
+  const shippedCount = countMaybeBundle(shippedCountRowsInDate)
+
+  const orderCancelRows = ordersForCountsBase.filter((o) => o.orderStatus === STATUS_KEY_TO_ORDER_STATUS.order_cancel)
+  const orderCancelCountRows =
+    isValidDateRange(orderCancelRange.from, orderCancelRange.to)
+      ? orderCancelRows.filter((o) => orderInRangeWith(o, orderCancelRange.from, orderCancelRange.to))
+      : []
+  const orderCancelCount = countMaybeBundle(orderCancelCountRows)
+
   const statusCountsForDisplay: Record<StatusKey, number> = {
-    ...statusCounts,
-    shipped: shippedCountInRange,
+    all: allCount,
+    payment_complete: paymentCompleteCount,
+    preparing: preparingCount,
+    shipped: shippedCount,
+    order_cancel: orderCancelCount,
   }
 
   const PAGE_SIZE = 10
@@ -602,16 +1010,34 @@ export default function OrderStatus() {
     setSelectedIds(new Set())
   }, [tab, activeStatus])
 
+  // 검색 조건은 상태 탭 이동 시 기본값으로 초기화
+  useEffect(() => {
+    setSearchType2('약국명')
+    setSearchKeyword2('')
+    setSupplier(supplierOptions[0])
+    setDeposit('전체')
+    setDeliverySido(PLACEHOLDER_SIDO)
+    setDeliveryGugun(PLACEHOLDER_GUGUN)
+    setDeliveryEup(PLACEHOLDER_EUP)
+    setPlusExclusiveY(false)
+    setAllStatusFilter('')
+    setShippedDateBasis('order')
+  }, [activeStatus])
+
   const allFilteredSelected =
-    displayedOrders.length > 0 && displayedOrders.every((o) => selectedIds.has(o.id))
+    paginatedOrders.length > 0 && paginatedOrders.every((o) => selectedIds.has(o.id))
   const someFilteredSelected =
-    displayedOrders.some((o) => selectedIds.has(o.id)) && !allFilteredSelected
+    paginatedOrders.some((o) => selectedIds.has(o.id)) && !allFilteredSelected
 
   const toggleSelectAll = () => {
     if (allFilteredSelected) {
-      setSelectedIds(new Set())
+      const next = new Set(selectedIds)
+      paginatedOrders.forEach((o) => next.delete(o.id))
+      setSelectedIds(next)
     } else {
-      setSelectedIds(new Set(displayedOrders.map((o) => o.id)))
+      const next = new Set(selectedIds)
+      paginatedOrders.forEach((o) => next.add(o.id))
+      setSelectedIds(next)
     }
   }
 
@@ -625,9 +1051,9 @@ export default function OrderStatus() {
   }
 
   const summaryOrderAmount = displayedOrders.reduce((sum, r) => sum + r.orderAmount, 0)
-  const summaryPaymentAmount = displayedOrders.reduce((sum, r) => sum + r.paymentAmount, 0)
   const summaryFinalAmount = displayedOrders.reduce((sum, r) => sum + r.finalAmount, 0)
-  const summaryCardPartialCancel = Math.max(summaryPaymentAmount - summaryFinalAmount, 0)
+  // 최종결제금액 = 주문금액 - 취소금액(부분취소 포함)
+  const summaryCancelAmount = Math.max(summaryOrderAmount - summaryFinalAmount, 0)
 
   const setQuickDate = (type: 'today' | '1day' | '1week' | '1month') => {
     const today = new Date()
@@ -645,8 +1071,13 @@ export default function OrderStatus() {
       from = new Date(today)
       from.setMonth(from.getMonth() - 1)
     }
-    setDateFrom(formatDate(from))
+    const fromStr = formatDate(from)
+    setDateFrom(fromStr)
     setDateTo(toStr)
+    setDateRangeByStatus((prev) => ({
+      ...prev,
+      [activeStatus]: { from: fromStr, to: toStr },
+    }))
   }
 
   return (
@@ -728,14 +1159,28 @@ export default function OrderStatus() {
           <input
             type="date"
             value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value
+              setDateFrom(v)
+              setDateRangeByStatus((prev) => ({
+                ...prev,
+                [activeStatus]: { ...prev[activeStatus], from: v },
+              }))
+            }}
             className={styles.input}
           />
           <span className={styles.rangeSep}>~</span>
           <input
             type="date"
             value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value
+              setDateTo(v)
+              setDateRangeByStatus((prev) => ({
+                ...prev,
+                [activeStatus]: { ...prev[activeStatus], to: v },
+              }))
+            }}
             className={styles.input}
           />
           <div className={styles.quickDates}>
@@ -841,8 +1286,25 @@ export default function OrderStatus() {
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>
-                <input type="text" className={styles.input} placeholder="" value={searchKeyword2} onChange={(e) => setSearchKeyword2(e.target.value)} />
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder=""
+                  value={searchKeyword2}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v.length > 50) {
+                      window.alert('검색어는 최대 50자까지 입력 가능합니다.')
+                      setSearchKeyword2(v.slice(0, 50))
+                      return
+                    }
+                    setSearchKeyword2(v)
+                  }}
+                />
               </div>
+              {keywordRaw.length > 0 && keyword.trim().length === 0 && (
+                <div className={styles.searchError}>검색어를 확인해주세요.</div>
+              )}
               {activeStatus === 'all' && (
                 <>
                   <label className={styles.filterLabel}>주문 상태</label>
@@ -868,12 +1330,12 @@ export default function OrderStatus() {
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="주문금액" defaultOpen={true}>
+      <CollapsibleSection title="주문금액" defaultOpen={false}>
         <div className={styles.summaryRow}>
           <span>주문금액 {summaryOrderAmount.toLocaleString()} 원</span>
-          <span>배송비 0 원</span>
-          <span>결제금액 {summaryPaymentAmount.toLocaleString()} 원</span>
-          <span>카드 부분 취소 {summaryCardPartialCancel.toLocaleString()} 원</span>
+          <span> - </span>
+          <span>취소금액(부분취소 포함) {summaryCancelAmount.toLocaleString()} 원</span>
+          <span> = </span>
           <span>최종결제금액 {summaryFinalAmount.toLocaleString()} 원</span>
         </div>
       </CollapsibleSection>
@@ -965,7 +1427,7 @@ export default function OrderStatus() {
                       {row.orderNo}
                     </button>
                   </td>
-                  <td className={styles.colSticky3}>{row.orderStatus}</td>
+                  <td className={styles.colSticky3}>{getOrderStatusListLabel(row)}</td>
                   <td>{row.supplier}</td>
                   <td>{row.productName}</td>
                   <td>{row.pharmacyName}</td>

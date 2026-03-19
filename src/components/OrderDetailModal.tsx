@@ -22,6 +22,66 @@ function parseSapOrderNo(raw: string): { order: string; delivery: string; billin
   }
 }
 
+/** SAP 라인 마지막 괄호 텍스트 추출 (예: "...(출하완료)" → "출하완료") */
+function parseSapLastParenText(line: string): string | null {
+  const m = line.match(/\(([^()]+)\)\s*$/)
+  return m ? m[1].trim() : null
+}
+
+/** SAP 라인 마지막 괄호 텍스트를 주문상태로 대략 매핑 */
+function mapSapLastParenToOrderStatus(raw: string): string | null {
+  // 출하 단계는 앱의 발송 단계로 매핑
+  if (/출하\s*완료/.test(raw) || /출하완료/.test(raw)) return '발송 완료'
+  if (/일부\s*완료/.test(raw) || /일부완료/.test(raw)) return '발송 준비중'
+  if (/출하/.test(raw) && !/완료/.test(raw)) return '발송 준비중'
+  if (/준비/.test(raw) && /출하/.test(raw)) return '발송 준비중'
+
+  // 취소/부분취소 등의 키워드(데이터 포맷이 바뀌어도 최소한의 표시 유지 목적)
+  if (/부분/.test(raw) && /취소/.test(raw)) return '부분 취소'
+  if (/취소/.test(raw)) return '주문 취소'
+
+  if (/결제\s*완료/.test(raw) || /결제완료/.test(raw)) return '결제완료'
+  if (/주문\s*완료/.test(raw) || /주문완료/.test(raw) || /오더\s*완료/.test(raw) || /오더완료/.test(raw)) {
+    return '주문 완료'
+  }
+
+  return null
+}
+
+export function getSupplierOrderStatusFromSap(args: {
+  sapOrderNoBySupplier?: Record<string, string>
+  supplierName: string
+  fallbackOrderStatus: string
+}): string {
+  const { sapOrderNoBySupplier, supplierName, fallbackOrderStatus } = args
+  if (!sapOrderNoBySupplier) return fallbackOrderStatus
+
+  const supplierKey = normalizeSupplierForSap(supplierName)
+  const raw = sapOrderNoBySupplier[supplierKey]
+  if (!raw || !raw.trim()) return fallbackOrderStatus
+
+  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const mapped = lines
+    .map((line) => {
+      const last = parseSapLastParenText(line)
+      if (!last) return null
+      return mapSapLastParenToOrderStatus(last)
+    })
+    .filter((v): v is string => !!v)
+
+  if (mapped.length === 0) return fallbackOrderStatus
+
+  // 완료가 있으면 완료 우선, 그 외에는 준비중/그 다음 순
+  if (mapped.includes('발송 완료')) return '발송 완료'
+  if (mapped.includes('발송 준비중')) return '발송 준비중'
+  if (mapped.includes('부분 취소')) return '부분 취소'
+  if (mapped.includes('주문 취소')) return '주문 취소'
+  if (mapped.includes('결제완료')) return '결제완료'
+  if (mapped.includes('주문 완료')) return '주문 완료'
+
+  return mapped[0] ?? fallbackOrderStatus
+}
+
 /** SAP 라인 앞부분에서 OTC/ETC 추출 (예: "OTC(제): ..." → "OTC", "ETC(바): ..." → "ETC") */
 function parseSapCategoryFromLine(line: string): 'OTC' | 'ETC' | null {
   const m = line.trim().match(/^(OTC|ETC)/i)
@@ -243,6 +303,20 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
   if (!detail) return null
 
   const status = detail.orderStatus
+  const supplierNames = Array.from(new Set(detail.products.map((p) => p.supplierName).filter(Boolean)))
+  const hasMultipleSuppliers = supplierNames.length > 1
+  /** 공급사별로 파생 주문상태가 서로 다를 때만 요약 행에 `공급사별 상태 상이` 표시 */
+  const statusDiffersAcrossSuppliers =
+    supplierNames.length > 1 &&
+    new Set(
+      supplierNames.map((name) =>
+        getSupplierOrderStatusFromSap({
+          sapOrderNoBySupplier: detail.sapOrderNoBySupplier,
+          supplierName: name,
+          fallbackOrderStatus: detail.orderStatus,
+        })
+      )
+    ).size > 1
   const statusActionButton =
     status === '주문 완료' ? { label: '결제완료', className: styles.btnShip } :
     status === '결제완료' ? { label: '발송 준비중 처리', className: styles.btnShip } :
@@ -295,11 +369,6 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                   <li>* [낱알반품]을 했을 경우, 해당 상품은 반품이 불가능하며, 반품이 안된 상품에 한해서 낱알반품을 받을 수 있습니다.</li>
                   <li>* [판매가조정]은 반품, 낱알반품이 발생하지 않은 경우에만 판매가조정이 가능합니다.</li>
                   <li>* 배송비에 대한 적립은 배송비가 발생한 주문에 대해서 가능합니다.</li>
-
-
-
-
-
                 </ul>
               </div>
               <div className={styles.tableWrap}>
@@ -398,7 +467,11 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                 </tr>
                 <tr>
                   <th>주문상태</th>
-                  <td>{detail.orderStatus} ({detail.orderStatusDate})</td>
+                  <td>
+                    {statusDiffersAcrossSuppliers
+                      ? '공급사별 상태 상이'
+                      : `${detail.orderStatus} (${detail.orderStatusDate})`}
+                  </td>
                   <th>결제방식</th>
                   <td>{detail.paymentMethod}</td>
                 </tr>
@@ -446,7 +519,13 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                           {sapSuppliers.map((name) => (
                             <th key={name} className={styles.sapOrderNoThCompany}>
                               <div>{name}</div>
-                              <div className={styles.sapOrderNoThLabel}>(오더 / 납품 / 빌링)</div>
+                            </th>
+                          ))}
+                        </tr>
+                        <tr>
+                          {sapSuppliers.map((name) => (
+                            <th key={`${name}-fields`} className={styles.sapOrderNoThFieldLabels}>
+                              오더번호 / 납품번호 / 빌링번호
                             </th>
                           ))}
                         </tr>
@@ -458,28 +537,38 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                             if (!raw || !raw.trim()) return <td key={name} className={styles.sapOrderNoTd}>-</td>
                             const badgeType = detail.sapShipmentTypeBySupplier?.[name]
                             const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+                            /** 출하구분: 공장 → 제약, 지역 → 지역 (UI 라벨) */
+                            const shipmentLabel =
+                              badgeType === '공장' ? '제약' : badgeType === '지역' ? '지역' : null
                             return (
                               <td key={name} className={styles.sapOrderNoTd}>
                                 {lines.map((line, i) => {
                                   const parsed = parseSapOrderNo(line)
                                   const hasData = parsed.order !== '-' || parsed.delivery !== '-' || parsed.billing !== '-'
-                                  const category = detail.sapCategoryBySupplier?.[name] ?? parseSapCategoryFromLine(line)
+                                  const category =
+                                    parseSapCategoryFromLine(line) ?? detail.sapCategoryBySupplier?.[name] ?? null
                                   return hasData ? (
-                                    <div key={i} className={styles.sapOrderNoCellWrap}>
-                                      <div className={styles.sapOrderNoCellLeft}>
+                                    <div key={i} className={styles.sapOrderBlock}>
+                                      <div className={styles.sapOrderBlockNumbers}>
                                         {parsed.order} / {parsed.delivery} / {parsed.billing}
                                       </div>
-                                      {(category != null || badgeType != null) && (
-                                        <div className={styles.sapOrderNoCellRight}>
-                                          {category != null && <span className={styles.sapOrderNoCategory}>{category}</span>}
-                                          {category != null && badgeType != null && <span className={styles.sapOrderNoCellSep}>|</span>}
-                                          {badgeType != null && (
+                                      {(category != null || shipmentLabel != null) && (
+                                        <div className={styles.sapOrderBlockOtcRow}>
+                                          {category != null && (
+                                            <span className={styles.sapOrderNoCategory}>{category}</span>
+                                          )}
+                                          {category != null && shipmentLabel != null && (
+                                            <span className={styles.sapOrderNoCellSep}>|</span>
+                                          )}
+                                          {shipmentLabel != null && (
                                             <span
                                               className={
-                                                badgeType === '지역' ? styles.shipmentPillRegion : styles.shipmentPillFactory
+                                                badgeType === '지역'
+                                                  ? styles.shipmentPillRegion
+                                                  : styles.shipmentPillFactory
                                               }
                                             >
-                                              {badgeType}
+                                              {shipmentLabel}
                                             </span>
                                           )}
                                         </div>
@@ -509,6 +598,11 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
               }, {})
             ).map(([supplierName, products]) => {
               const isOpen = openSuppliers.has(supplierName)
+              const supplierOrderStatus = getSupplierOrderStatusFromSap({
+                sapOrderNoBySupplier: detail.sapOrderNoBySupplier,
+                supplierName,
+                fallbackOrderStatus: detail.orderStatus,
+              })
               const costDiscount =
                 detail.supplierSummary?.find((s) => s.supplier === supplierName)?.costDiscount ?? '-'
               const expectedDelivery = products[0]?.expectedDeliveryDate ?? '-'
@@ -542,6 +636,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                       <table className={`${styles.detailTable} ${styles.detailTableCenter}`}>
                         <thead>
                           <tr>
+                            {hasMultipleSuppliers && <th>주문상태</th>}
                             <th>공급사</th>
                             <th>구분</th>
                             <th>상품명/규격/단위</th>
@@ -568,6 +663,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                               const badgeLabel = isFactory ? '공장' : isRegion ? '지역' : null
                               return (
                               <tr key={`${supplierName}-${i}`}>
+                                {hasMultipleSuppliers && <td>{supplierOrderStatus}</td>}
                                 <td>
                                   <div className={styles.supplierCellInner}>
                                     <span>{supplierName ?? '-'}</span>
