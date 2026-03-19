@@ -78,27 +78,68 @@ const searchTypeOptions = ['약국명', '주문번호', '회원 아이디', '유
 const PLACEHOLDER_SIDO = '-시도-'
 const PLACEHOLDER_GUGUN = '-구군-'
 const PLACEHOLDER_EUP = '-읍면동-'
+
+/** 발송 준비중 탭 시도 드롭다운 순서 (화면 스펙) */
+const PREPARING_SIDO_ORDER = [
+  '강원',
+  '경기',
+  '경남',
+  '경북',
+  '광주',
+  '대구',
+  '대전',
+  '부산',
+  '서울',
+  '세종',
+  '울산',
+  '인천',
+  '전남',
+  '전북',
+  '제주',
+  '충남',
+  '충북',
+] as const
+
+const GUGUN_PLACEHOLDER_ONLY: Record<string, string[]> = {
+  [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+}
+
 const REGION_TREE: Record<string, Record<string, string[]>> = {
-  [PLACEHOLDER_SIDO]: { [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP] },
-  서울특별시: {
+  [PLACEHOLDER_SIDO]: GUGUN_PLACEHOLDER_ONLY,
+  강원: { ...GUGUN_PLACEHOLDER_ONLY },
+  경남: { ...GUGUN_PLACEHOLDER_ONLY },
+  경북: { ...GUGUN_PLACEHOLDER_ONLY },
+  광주: { ...GUGUN_PLACEHOLDER_ONLY },
+  대구: { ...GUGUN_PLACEHOLDER_ONLY },
+  대전: { ...GUGUN_PLACEHOLDER_ONLY },
+  세종: { ...GUGUN_PLACEHOLDER_ONLY },
+  울산: { ...GUGUN_PLACEHOLDER_ONLY },
+  인천: { ...GUGUN_PLACEHOLDER_ONLY },
+  전남: { ...GUGUN_PLACEHOLDER_ONLY },
+  전북: { ...GUGUN_PLACEHOLDER_ONLY },
+  제주: { ...GUGUN_PLACEHOLDER_ONLY },
+  충남: { ...GUGUN_PLACEHOLDER_ONLY },
+  충북: { ...GUGUN_PLACEHOLDER_ONLY },
+  서울: {
     [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
     강남구: [PLACEHOLDER_EUP, '역삼동', '논현동', '대치동'],
     강북구: [PLACEHOLDER_EUP, '미아동', '수유동'],
     송파구: [PLACEHOLDER_EUP, '잠실동', '문정동'],
   },
-  경기도: {
+  경기: {
     [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
     '수원시 영통구': [PLACEHOLDER_EUP, '영통동', '매탄동'],
     '성남시 분당구': [PLACEHOLDER_EUP, '정자동', '야탑동'],
     '고양시 덕양구': [PLACEHOLDER_EUP, '행신동', '화정동'],
   },
-  부산광역시: {
+  부산: {
     [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
     해운대구: [PLACEHOLDER_EUP, '우동', '재송동'],
     부산진구: [PLACEHOLDER_EUP, '부전동', '연지동'],
   },
 }
-const SIDO_OPTIONS = [PLACEHOLDER_SIDO, ...Object.keys(REGION_TREE).filter((k) => k !== PLACEHOLDER_SIDO)]
+
+const SIDO_OPTIONS = [PLACEHOLDER_SIDO, ...PREPARING_SIDO_ORDER]
 
 type StatusKey = 'all' | 'payment_complete' | 'preparing' | 'shipped' | 'order_cancel'
 const statusSteps: { key: StatusKey; label: string; icon: string; color: string }[] = [
@@ -106,7 +147,7 @@ const statusSteps: { key: StatusKey; label: string; icon: string; color: string 
   { key: 'payment_complete', label: '결제완료', icon: '', color: '#4caf50' },
   { key: 'preparing', label: '발송 준비중', icon: '', color: '#ff9800' },
   { key: 'shipped', label: '발송 완료', icon: '', color: '#e91e63' },
-  { key: 'order_cancel', label: '주문 취소 현황', icon: '', color: '#9e9e9e' },
+  { key: 'order_cancel', label: '주문 취소', icon: '', color: '#9e9e9e' },
 ]
 
 // 상태 버튼 키 → 주문내역 orderStatus 문자열 매칭
@@ -163,6 +204,22 @@ const MULTI_SUPPLIER_ORDER_ITEMS = [
   { supplier: '한올바이오파마', type: '전문의약품', name: '엑시드정 40mg', price: 93900, qty: 5, amount: 469500 },
 ] as const
 const MULTI_SUPPLIER_ORDER_TOTAL = MULTI_SUPPLIER_ORDER_ITEMS.reduce((s, i) => s + i.amount, 0)
+
+/** P010414168713: 공급사 2곳(대웅제약·대웅바이오) 주문 */
+const DUAL_SUPPLIER_ORDER_NO = 'P010414168713'
+const DUAL_SUPPLIER_ORDER_DATE = '2026-03-21 11:30:00'
+const DUAL_SUPPLIER_ORDER_ITEMS = [
+  { supplier: '대웅제약', type: '전문의약품', name: '아모잘란정 5mg', price: 12500, qty: 2, amount: 25000 },
+  { supplier: '대웅제약', type: '일반의약품', name: '탁센 연질캡슐', price: 9800, qty: 2, amount: 19600 },
+  { supplier: '대웅바이오', type: '전문의약품', name: '메가바이오캡슐 200mg', price: 31500, qty: 1, amount: 31500 },
+] as const
+const DUAL_SUPPLIER_ORDER_TOTAL = DUAL_SUPPLIER_ORDER_ITEMS.reduce((s, i) => s + i.amount, 0)
+const DUAL_SUPPLIER_SAP_BY_SUPPLIER: Record<string, string> = {
+  대웅제약:
+    'OTC(제): 오더(1710333001) / 납품(8014001001) / 빌링(9016001001) (공장)',
+  대웅바이오:
+    'ETC(바): 오더(1710333002) / 납품(8014002002) / 빌링(9016002002) (지역)',
+}
 
 const mockOrders = [
   {
@@ -240,9 +297,9 @@ const mockOrders = [
   ...Array.from({ length: 10 }, (_, i) => {
     const statuses: string[] = ['주문 완료', '주문 완료', '주문 완료', '결제완료', '결제완료', '결제완료', '결제완료', '발송 준비중', '발송 준비중', '발송 준비중']
     const regions = [
-      { deliverySido: '서울특별시' as const, deliveryGugun: '강남구', deliveryEup: '역삼동' },
-      { deliverySido: '경기도' as const, deliveryGugun: '수원시 영통구', deliveryEup: '영통동' },
-      { deliverySido: '부산광역시' as const, deliveryGugun: '해운대구', deliveryEup: '우동' },
+      { deliverySido: '서울' as const, deliveryGugun: '강남구', deliveryEup: '역삼동' },
+      { deliverySido: '경기' as const, deliveryGugun: '수원시 영통구', deliveryEup: '영통동' },
+      { deliverySido: '부산' as const, deliveryGugun: '해운대구', deliveryEup: '우동' },
     ]
     const r = regions[i % 3]
     const isPreparing = statuses[i] === '발송 준비중'
@@ -270,6 +327,30 @@ const mockOrders = [
       ...(isPreparing ? { deliverySido: r.deliverySido, deliveryGugun: r.deliveryGugun, deliveryEup: r.deliveryEup } : {}),
     }
   }),
+  {
+    id: 13,
+    orderNo: DUAL_SUPPLIER_ORDER_NO,
+    supplier: '대웅제약',
+    productName: '아모잘란정 5mg 외',
+    pharmacyName: '성심약국',
+    customerName: '김고객',
+    memberPaymentMethod: '선결제',
+    orderAmount: DUAL_SUPPLIER_ORDER_TOTAL,
+    salesAmount: DUAL_SUPPLIER_ORDER_TOTAL,
+    supplyAmount: Math.floor(DUAL_SUPPLIER_ORDER_TOTAL * 0.91),
+    tax: Math.floor(DUAL_SUPPLIER_ORDER_TOTAL * 0.09),
+    paymentAmount: DUAL_SUPPLIER_ORDER_TOTAL,
+    finalAmount: 0,
+    paymentMethod: '예치금',
+    orderDateTime: DUAL_SUPPLIER_ORDER_DATE,
+    paymentDateTime: DUAL_SUPPLIER_ORDER_DATE,
+    shippedCompleteDateTime: DUAL_SUPPLIER_ORDER_DATE,
+    orderStatus: '결제완료',
+    memo: '',
+    memberId: 'pharm02',
+    userKey: 'pharm02',
+    businessNo: '123-45-67890',
+  },
 ]
 
 function formatDate(d: Date) {
@@ -433,6 +514,9 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
         대웅바이오: {
           region: '2026-3-18 오후1시',
         },
+        한올바이오파마: {
+          simple: '2026-03-19 오후1시',
+        },
       },
       orderDateTime: orderWhen,
       orderStatus: '결제완료',
@@ -457,6 +541,116 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
         businessNo: '104-05-47262',
         medicalCode: '31894721',
         address: '(12260) 경기도 남양주시 도농로 1(도농동) 53-4',
+      },
+      vendorMessage: '',
+      adminMemos: [],
+    }
+  }
+
+  if (row.orderNo === DUAL_SUPPLIER_ORDER_NO) {
+    const orderWhen = DUAL_SUPPLIER_ORDER_DATE
+    const datePart = orderWhen.slice(0, 10)
+    const sapOrderNoBySupplier = DUAL_SUPPLIER_SAP_BY_SUPPLIER
+    const sapShipmentTypeBySupplier: Record<string, '지역' | '공장'> = {
+      대웅제약: '공장',
+      대웅바이오: '지역',
+    }
+    const sapCategoryBySupplier: Record<string, 'OTC' | 'ETC'> = {
+      대웅제약: 'OTC',
+      대웅바이오: 'ETC',
+    }
+    const daewongBioRowCount = DUAL_SUPPLIER_ORDER_ITEMS.filter((i) => i.supplier === '대웅바이오').length
+    let daewongPharmaIdx = 0
+    let daewongBioIdx = 0
+    const products = DUAL_SUPPLIER_ORDER_ITEMS.map((item) => {
+      const base = {
+        supplierName: item.supplier,
+        expectedDeliveryDate: datePart,
+        category: item.type,
+        productSpec: item.name,
+        manufacturer: `${item.supplier}(주)`,
+        sellingPrice: `${item.price.toLocaleString()}원`,
+        orderQty: String(item.qty),
+        subtotal: `${item.amount.toLocaleString()}원`,
+        shippingCost: '0원' as const,
+      }
+      if (item.supplier === '대웅제약') {
+        const idx = daewongPharmaIdx
+        daewongPharmaIdx += 1
+        let shipmentCell: { badge: '공장' | '지역'; rowSpan?: number } | 'omit' | undefined
+        if (idx === 0) shipmentCell = { badge: '공장' }
+        else shipmentCell = { badge: '지역' }
+        return {
+          ...base,
+          shipmentType: idx === 0 ? ('제약공장 출하' as const) : ('지역공장 출하' as const),
+          shipmentCell,
+        }
+      }
+      if (item.supplier === '대웅바이오') {
+        const idx = daewongBioIdx
+        daewongBioIdx += 1
+        const shipmentCell =
+          idx === 0
+            ? { badge: '지역' as const, rowSpan: daewongBioRowCount }
+            : ('omit' as const)
+        return {
+          ...base,
+          shipmentType: '지역공장 출하' as const,
+          shipmentCell,
+        }
+      }
+      return base
+    })
+    const supplierTotals = DUAL_SUPPLIER_ORDER_ITEMS.reduce<Record<string, number>>((acc, item) => {
+      acc[item.supplier] = (acc[item.supplier] ?? 0) + item.amount
+      return acc
+    }, {})
+    const supplierSummary = Object.entries(supplierTotals).map(([supplier, totalAmount]) => ({
+      supplier,
+      totalAmount: `${totalAmount.toLocaleString()}원`,
+      shippingCost: '0원',
+      otcDiscount: '0원',
+      costDiscount: '0원',
+      mileageUsed: '0원',
+    }))
+    return {
+      orderNo: DUAL_SUPPLIER_ORDER_NO,
+      sapOrderNo: Object.values(sapOrderNoBySupplier).join('\n'),
+      sapOrderNoBySupplier,
+      sapShipmentTypeBySupplier,
+      sapCategoryBySupplier,
+      supplierDeliverySlots: {
+        대웅제약: {
+          factory: '2026-3-22 오후 2시',
+          region: '2026-3-20 오후 1시',
+        },
+        대웅바이오: {
+          region: '2026-3-21 오후 3시',
+        },
+      },
+      orderDateTime: orderWhen,
+      orderStatus: '결제완료',
+      orderStatusDate: orderWhen,
+      totalOrderAmount: DUAL_SUPPLIER_ORDER_TOTAL,
+      orderIdEmail: 'pharm02 / pharm02@example.com',
+      paymentMethod: '예치금',
+      products,
+      supplierSummary,
+      paymentSummary: [
+        {
+          minusBalance: '0원',
+          supplierCoupon: '0원',
+          paymentAmount: `${DUAL_SUPPLIER_ORDER_TOTAL.toLocaleString()}원`,
+          earnedMileage: '0원',
+          expectedDeposit: '0원',
+        },
+      ],
+      customer: {
+        recipient: '성심약국 (김고객)',
+        contact: '02-1234-5678 / 010-2222-3333',
+        businessNo: '123-45-67890',
+        medicalCode: '31112233',
+        address: '(04567) 서울특별시 중구 세종대로 110',
       },
       vendorMessage: '',
       adminMemos: [],
