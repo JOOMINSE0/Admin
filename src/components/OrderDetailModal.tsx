@@ -6,7 +6,7 @@ import styles from './OrderDetailModal.module.css'
 const SAP_TARGET_SUPPLIER_NAMES = ['대웅제약', '대웅바이오', '한올바이오파마'] as const
 
 /** 공급사명에서 괄호·접미사 제거 후 비교용 이름 반환 (예: "대웅제약 (도매)" → "대웅제약") */
-function normalizeSupplierForSap(name: string): string {
+export function normalizeSupplierForSap(name: string): string {
   return name.replace(/\s*\([^)]*\)\s*$/, '').trim()
 }
 
@@ -333,7 +333,9 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
           </h2>
           <div className={styles.actions}>
             <button type="button" className={styles.btnPrint}>프린트하기</button>
-            <button type="button" className={styles.btnPartialCancel} onClick={openPartialCancelForm}>부분취소</button>
+            {(status === '주문 완료' || status === '결제완료') && (
+              <button type="button" className={styles.btnPartialCancel} onClick={openPartialCancelForm}>부분취소</button>
+            )}
             {(status === '주문 완료' || status === '결제완료') && (
               <button
                 type="button"

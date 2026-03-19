@@ -1,7 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import CollapsibleSection from '../components/CollapsibleSection'
-import OrderDetailModal, { getSupplierOrderStatusFromSap, type OrderDetailData } from '../components/OrderDetailModal'
+import OrderDetailModal, {
+  getSupplierOrderStatusFromSap,
+  normalizeSupplierForSap,
+  type OrderDetailData,
+} from '../components/OrderDetailModal'
 import styles from './OrderPage.module.css'
 
 const breadcrumb = ['홈', '주문관리', '주문현황']
@@ -579,25 +583,94 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
   }
 }
 
-/**
- * 목록/엑셀 주문상태 표시.
- * 공급사가 여럿이어도 상태가 모두 같으면 일반 상태를 쓰고,
- * 공급사별 주문상태가 서로 다를 때만 `공급사별 상태 상이` (상세주문정보와 동일 규칙).
- */
-function getOrderStatusListLabel(row: OrderRow): string {
-  const detail = getOrderDetail(row)
-  const supplierNames = Array.from(new Set(detail.products.map((p) => p.supplierName).filter(Boolean)))
-  if (supplierNames.length <= 1) return row.orderStatus
+/** 상품 소계 문자열 → 숫자(원) */
+function parseSubtotalWon(s: string | undefined): number {
+  if (!s) return 0
+  const n = parseInt(String(s).replace(/[,\s원]/g, ''), 10)
+  return Number.isNaN(n) ? 0 : n
+}
 
-  const perSupplier = supplierNames.map((name) =>
-    getSupplierOrderStatusFromSap({
-      sapOrderNoBySupplier: detail.sapOrderNoBySupplier,
-      supplierName: name,
-      fallbackOrderStatus: detail.orderStatus,
-    })
-  )
-  if (new Set(perSupplier).size > 1) return '공급사별 상태 상이'
-  return row.orderStatus
+/** 주문내역 테이블 1행 (공급사 분할 시 여러 줄) */
+type OrderTableLine = {
+  key: string
+  baseRow: OrderRow
+  detail: OrderDetailData
+  lineIndex: number
+  rowspan: number
+  supplierDisplay: string
+  supplierStatus: string
+  productSummary: string
+  supplierOrderAmount: number
+  supplierSalesAmount: number
+  supplierSupply: number
+  supplierTax: number
+}
+
+function buildOrderTableLines(row: OrderRow): OrderTableLine[] {
+  const detail = getOrderDetail(row)
+  const byKey = new Map<string, OrderDetailData['products']>()
+  for (const p of detail.products) {
+    const k = normalizeSupplierForSap(p.supplierName)
+    if (!byKey.has(k)) byKey.set(k, [])
+    byKey.get(k)!.push(p)
+  }
+  const keys = [...byKey.keys()]
+
+  if (keys.length <= 1) {
+    const prods = keys.length === 1 ? byKey.get(keys[0])! : detail.products
+    const displayName = prods[0]?.supplierName ?? row.supplier
+    return [
+      {
+        key: `${row.id}-0`,
+        baseRow: row,
+        detail,
+        lineIndex: 0,
+        rowspan: 1,
+        supplierDisplay: row.supplier,
+        supplierStatus: getSupplierOrderStatusFromSap({
+          sapOrderNoBySupplier: detail.sapOrderNoBySupplier,
+          supplierName: displayName,
+          fallbackOrderStatus: row.orderStatus,
+        }),
+        productSummary: row.productName,
+        supplierOrderAmount: row.orderAmount,
+        supplierSalesAmount: row.salesAmount,
+        supplierSupply: row.supplyAmount,
+        supplierTax: row.tax,
+      },
+    ]
+  }
+
+  const rowspan = keys.length
+  return keys.map((k, lineIndex) => {
+    const prods = byKey.get(k)!
+    const displayName = prods[0]?.supplierName ?? k
+    const sum = prods.reduce((s, p) => s + parseSubtotalWon(p.subtotal), 0)
+    const ratio = row.orderAmount > 0 ? sum / row.orderAmount : 0
+    const firstSpec = (prods[0]?.productSpec ?? prods[0]?.category ?? '—').trim()
+    const shortName = firstSpec.length > 36 ? `${firstSpec.slice(0, 36)}…` : firstSpec
+    const productSummary =
+      prods.length > 1 ? `${shortName} 외 ${prods.length - 1}건` : shortName
+
+    return {
+      key: `${row.id}-${lineIndex}`,
+      baseRow: row,
+      detail,
+      lineIndex,
+      rowspan,
+      supplierDisplay: displayName,
+      supplierStatus: getSupplierOrderStatusFromSap({
+        sapOrderNoBySupplier: detail.sapOrderNoBySupplier,
+        supplierName: k,
+        fallbackOrderStatus: row.orderStatus,
+      }),
+      productSummary,
+      supplierOrderAmount: sum,
+      supplierSalesAmount: Math.round(row.salesAmount * ratio),
+      supplierSupply: Math.round(row.supplyAmount * ratio),
+      supplierTax: Math.round(row.tax * ratio),
+    }
+  })
 }
 
 const EXCEL_HEADERS = [
@@ -607,25 +680,28 @@ const EXCEL_HEADERS = [
 ]
 
 function downloadOrderExcel(orders: OrderRow[]) {
-  const rows = orders.map((row) => [
-    row.orderNo,
-    row.supplier,
-    row.productName,
-    row.pharmacyName,
-    row.customerName,
-    row.memberPaymentMethod,
-    row.orderAmount,
-    row.salesAmount,
-    row.supplyAmount,
-    row.tax,
-    row.paymentAmount,
-    row.finalAmount,
-    row.paymentMethod,
-    row.orderDateTime,
-    row.orderStatus,
-    row.memo,
-    row.memberId,
-  ])
+  const rows = orders.flatMap((row) => {
+    const lines = buildOrderTableLines(row)
+    return lines.map((line) => [
+      row.orderNo,
+      line.supplierDisplay,
+      line.productSummary,
+      row.pharmacyName,
+      row.customerName,
+      row.memberPaymentMethod,
+      line.supplierOrderAmount,
+      line.supplierSalesAmount,
+      line.supplierSupply,
+      line.supplierTax,
+      row.paymentAmount,
+      row.finalAmount,
+      row.paymentMethod,
+      row.orderDateTime,
+      line.supplierStatus,
+      row.memo,
+      row.memberId,
+    ])
+  })
   const data = [EXCEL_HEADERS, ...rows]
   const ws = XLSX.utils.aoa_to_sheet(data)
   const wb = XLSX.utils.book_new()
@@ -996,6 +1072,11 @@ export default function OrderStatus() {
   const totalPages = Math.max(1, Math.ceil(displayedOrders.length / PAGE_SIZE))
   const safePage = Math.min(currentPage, totalPages)
   const paginatedOrders = displayedOrders.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  const orderTableLines = useMemo(() => {
+    const slice = displayedOrders.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+    return slice.flatMap((row) => buildOrderTableLines(row))
+  }, [displayedOrders, safePage])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -1409,42 +1490,72 @@ export default function OrderStatus() {
               </tr>
             </thead>
             <tbody>
-              {paginatedOrders.map((row) => (
-                <tr key={row.id}>
-                  <td className={styles.colSticky1}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(row.id)}
-                      onChange={() => toggleSelectOne(row.id)}
-                    />
-                  </td>
-                  <td className={styles.colSticky2}>
-                    <button
-                      type="button"
-                      className={styles.orderNoLink}
-                      onClick={() => setDetailOpen(getOrderDetail(row))}
-                    >
-                      {row.orderNo}
-                    </button>
-                  </td>
-                  <td className={styles.colSticky3}>{getOrderStatusListLabel(row)}</td>
-                  <td>{row.supplier}</td>
-                  <td>{row.productName}</td>
-                  <td>{row.pharmacyName}</td>
-                  <td>{row.customerName}</td>
-                  <td>{row.memberPaymentMethod}</td>
-                  <td>{row.orderAmount.toLocaleString()}</td>
-                  <td>{row.salesAmount.toLocaleString()}</td>
-                  <td>{row.supplyAmount.toLocaleString()}</td>
-                  <td>{row.tax.toLocaleString()}</td>
-                  <td>{row.paymentAmount.toLocaleString()}</td>
-                  <td>{row.finalAmount.toLocaleString()}</td>
-                  <td>{row.paymentMethod}</td>
-                  <td>{row.orderDateTime}</td>
-                  <td>{row.memo}</td>
-                  <td>{row.memberId}</td>
-                </tr>
-              ))}
+              {orderTableLines.map((line, tableLineIdx) => {
+                const row = line.baseRow
+                const rs = line.rowspan
+                const groupStart = line.lineIndex === 0 && tableLineIdx > 0
+                return (
+                  <tr
+                    key={line.key}
+                    className={groupStart ? styles.trOrderGroupStart : undefined}
+                  >
+                    {line.lineIndex === 0 && (
+                      <td className={styles.colSticky1} rowSpan={rs}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(row.id)}
+                          onChange={() => toggleSelectOne(row.id)}
+                        />
+                      </td>
+                    )}
+                    {line.lineIndex === 0 && (
+                      <td className={styles.colSticky2} rowSpan={rs}>
+                        <button
+                          type="button"
+                          className={styles.orderNoLink}
+                          onClick={() => setDetailOpen(getOrderDetail(row))}
+                        >
+                          {row.orderNo}
+                        </button>
+                      </td>
+                    )}
+                    <td className={styles.colSticky3}>{line.supplierStatus}</td>
+                    <td>{line.supplierDisplay}</td>
+                    <td>{line.productSummary}</td>
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.pharmacyName}</td>
+                    )}
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.customerName}</td>
+                    )}
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.memberPaymentMethod}</td>
+                    )}
+                    <td>{line.supplierOrderAmount.toLocaleString()}</td>
+                    <td>{line.supplierSalesAmount.toLocaleString()}</td>
+                    <td>{line.supplierSupply.toLocaleString()}</td>
+                    <td>{line.supplierTax.toLocaleString()}</td>
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.paymentAmount.toLocaleString()}</td>
+                    )}
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.finalAmount.toLocaleString()}</td>
+                    )}
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.paymentMethod}</td>
+                    )}
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.orderDateTime}</td>
+                    )}
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.memo}</td>
+                    )}
+                    {line.lineIndex === 0 && (
+                      <td rowSpan={rs}>{row.memberId}</td>
+                    )}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

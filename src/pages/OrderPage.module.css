@@ -581,6 +581,11 @@
   background: #f8f9fb;
 }
 
+/* 다중 공급사 주문: 다음 주문 그룹 시작 행 구분 */
+.trOrderGroupStart td {
+  border-top: 2px solid #d0d4dc;
+}
+
 .table input[type="checkbox"] {
   accent-color: #FD490E;
   cursor: pointer;
