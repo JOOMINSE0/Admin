@@ -22,6 +22,32 @@ function parseSapOrderNo(raw: string): { order: string; delivery: string; billin
   }
 }
 
+/** SAP 문자열(전체 또는 공급사별)에 납품번호가 하나라도 있으면 true (-·빈값·미기재 제외) */
+export function sapHasAnyDeliveryNumber(detail: {
+  sapOrderNo?: string
+  sapOrderNoBySupplier?: Record<string, string>
+}): boolean {
+  const lineHasDelivery = (line: string): boolean => {
+    const { delivery } = parseSapOrderNo(line)
+    return delivery !== '-' && delivery.length > 0
+  }
+  const rawHasDelivery = (raw: string): boolean => {
+    if (!raw?.trim()) return false
+    return raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .some(lineHasDelivery)
+  }
+  if (detail.sapOrderNoBySupplier) {
+    for (const v of Object.values(detail.sapOrderNoBySupplier)) {
+      if (v && rawHasDelivery(v)) return true
+    }
+  }
+  if (detail.sapOrderNo && rawHasDelivery(detail.sapOrderNo)) return true
+  return false
+}
+
 /** SAP 라인 마지막 괄호 텍스트 추출 (예: "...(출하완료)" → "출하완료") */
 function parseSapLastParenText(line: string): string | null {
   const m = line.match(/\(([^()]+)\)\s*$/)
@@ -224,6 +250,8 @@ type OrderDetailModalProps = {
   currentUserName?: string
   /** 주문 취소 버튼 클릭 시 호출 (주문번호 전달). 호출 후 목록/탭 반영을 위해 모달을 닫음 */
   onOrderCancel?: (orderNo: string) => void
+  /** SAP에 납품번호가 있을 때 노출되는 주문취소요청 버튼 콜백 */
+  onOrderCancelRequest?: (orderNo: string) => void
 }
 
 type PartialCancelRecord = {
@@ -244,7 +272,13 @@ type PartialCancelRowInput = { accumType: string; reason: string; cancelQty: str
 const ACCUM_TYPE_OPTIONS = ['선택', '부분취소', '판매가조정', '낱알반품', '배송비'] as const
 const PARTIAL_CANCEL_REASON_OPTIONS = ['선택', '재고부족', '고객요청'] as const
 
-export default function OrderDetailModal({ detail, onClose, currentUserName = '관리자1', onOrderCancel }: OrderDetailModalProps) {
+export default function OrderDetailModal({
+  detail,
+  onClose,
+  currentUserName = '관리자1',
+  onOrderCancel,
+  onOrderCancelRequest,
+}: OrderDetailModalProps) {
   const [openSuppliers, setOpenSuppliers] = useState<Set<string>>(new Set())
   const [memos, setMemos] = useState<{ id: string; authorName: string; content: string }[]>([])
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
@@ -482,6 +516,8 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
   )
   const hidePartialCancelDaewongGroupOnly = hasDaewongGroupProduct && !hasNonDaewongGroupProduct
 
+  const showOrderCancelRequestButton = sapHasAnyDeliveryNumber(detail)
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -507,6 +543,22 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                 }}
               >
                 주문 취소
+              </button>
+            )}
+            {showOrderCancelRequestButton && (
+              <button
+                type="button"
+                className={styles.btnOrderCancelRequest}
+                onClick={() => {
+                  if (!detail.orderNo) return
+                  if (onOrderCancelRequest) {
+                    onOrderCancelRequest(detail.orderNo)
+                  } else {
+                    window.alert('주문취소 요청이 접수되었습니다.')
+                  }
+                }}
+              >
+                주문취소요청
               </button>
             )}
             {statusActionButton && (

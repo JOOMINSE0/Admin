@@ -142,9 +142,9 @@ const PO1041161391_SAP_BY_SUPPLIER: Record<string, string> = {
     'OTC(제): 오더(1510223871) / 납품(8013000947) / 빌링(9015867300) (지역)',
   ].join('\n'),
   대웅바이오: [
-    'ETC(바): 오더(1510223889) / 납품(8012996999) / 빌링(9015859866) (공장)',
-    'ETC(바): 오더(1510223870) / 납품(8012986191) / 빌링(9015841851) (공장)',
-    'ETC(바): 오더(1510223872) / 납품(8012986123) / 빌링(9015889567) (공장)',
+    'ETC(바): 오더(1510223889) / 납품(8012996999) / 빌링(9015859866) (지역)',
+    'ETC(바): 오더(1510223870) / 납품(8012986191) / 빌링(9015841851) (지역)',
+    'ETC(바): 오더(1510223872) / 납품(8012986123) / 빌링(9015889567) (지역)',
   ].join('\n'),
 }
 
@@ -356,7 +356,7 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
     const sapOrderNoBySupplier = PO1041161391_SAP_BY_SUPPLIER
     const sapShipmentTypeBySupplier: Record<string, '지역' | '공장'> = {
       대웅제약: '공장',
-      대웅바이오: '공장',
+      대웅바이오: '지역',
     }
     const sapCategoryBySupplier: Record<string, 'OTC' | 'ETC'> = {
       대웅제약: 'OTC',
@@ -397,11 +397,11 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
         daewongBioIdx += 1
         const shipmentCell =
           idx === 0
-            ? { badge: '공장' as const, rowSpan: daewongBioRowCount }
+            ? { badge: '지역' as const, rowSpan: daewongBioRowCount }
             : ('omit' as const)
         return {
           ...base,
-          shipmentType: '제약공장 출하' as const,
+          shipmentType: '지역공장 출하' as const,
           shipmentCell,
         }
       }
@@ -1621,6 +1621,9 @@ export default function OrderStatus() {
         onOrderCancel={(orderNo) => {
           setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: '주문 취소' }))
           setDetailOpen(null)
+        }}
+        onOrderCancelRequest={(orderNo) => {
+          window.alert(`주문취소 요청이 접수되었습니다. (${orderNo})`)
         }}
       />
     </div>
