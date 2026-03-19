@@ -135,42 +135,17 @@ const MULTI_SUPPLIER_ORDER_NO = 'PO1041161391'
 /** 상세·목록 주문일시 (API 연동 시 동일 JSON의 orderDate) */
 const MULTI_SUPPLIER_ORDER_DATE = '2026-03-19 13:59:17'
 
-/** 공급사별 SAP 라인 (상세 SAP 주문 정보 표시용, 기존 오더/납품/빌링 + (이슈)(상태) 형식) */
-type MultiSupplierSapLine = { type: 'OTC' | 'ETC'; sapNo: string; qty: number; issue: string; status: string }
-
-const MULTI_SUPPLIER_SAP_BY_SUPPLIER: Record<string, MultiSupplierSapLine[]> = {
-  /** 대웅제약만 주문상태 결제완료 (공급사별 상태 상이 시나리오용) */
+/** PO1041161391 SAP (제=대웅제약, 바=대웅바이오). 라인 끝 (공장)/(지역)은 상세 모달에서 배지로 표시 */
+const PO1041161391_SAP_BY_SUPPLIER: Record<string, string> = {
   대웅제약: [
-    { type: 'OTC', sapNo: '1510223871', qty: 7, issue: '재고입고미지연', status: '결제완료' },
-    { type: 'OTC', sapNo: '1510223871', qty: 6, issue: '상품 피크, 출고 후순위', status: '결제완료' },
-  ],
+    'OTC(제): 오더(1510223871) / 납품(8012986009) / 빌링(9015844142) (공장)',
+    'OTC(제): 오더(1510223871) / 납품(8013000947) / 빌링(9015867300) (지역)',
+  ].join('\n'),
   대웅바이오: [
-    { type: 'ETC', sapNo: '1510223889', qty: 9, issue: '압송중 제품/상품 피크', status: '일부완료' },
-    { type: 'ETC', sapNo: '1510223870', qty: 7, issue: '수도권', status: '출하완료' },
-  ],
-  한올바이오파마: [
-    { type: 'ETC', sapNo: '1510223872', qty: 2, issue: '재고입고미지연', status: '출하완료' },
-  ],
-}
-
-function formatMultiSupplierSapLine(line: MultiSupplierSapLine, isFirstInSupplier: boolean): string {
-  const prefix =
-    line.type === 'ETC'
-      ? isFirstInSupplier
-        ? 'ETC(바):'
-        : 'ETC:'
-      : isFirstInSupplier
-        ? 'OTC(제):'
-        : 'OTC:'
-  return `${prefix} 오더(${line.sapNo}) / 납품(-) / 빌링(-) / (${line.issue}, 수량${line.qty}건)(${line.status})`
-}
-
-function buildSapOrderNoBySupplierFromMultiJson(): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const [supplier, lines] of Object.entries(MULTI_SUPPLIER_SAP_BY_SUPPLIER)) {
-    out[supplier] = lines.map((l, i) => formatMultiSupplierSapLine(l, i === 0)).join('\n')
-  }
-  return out
+    'ETC(바): 오더(1510223889) / 납품(8012996999) / 빌링(9015859866) (공장)',
+    'ETC(바): 오더(1510223870) / 납품(8012986191) / 빌링(9015841851) (공장)',
+    'ETC(바): 오더(1510223872) / 납품(8012986123) / 빌링(9015889567) (공장)',
+  ].join('\n'),
 }
 
 const MULTI_SUPPLIER_ORDER_ITEMS = [
@@ -378,28 +353,60 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
   if (row.orderNo === MULTI_SUPPLIER_ORDER_NO) {
     const orderWhen = MULTI_SUPPLIER_ORDER_DATE
     const datePart = orderWhen.slice(0, 10)
-    const sapOrderNoBySupplier = buildSapOrderNoBySupplierFromMultiJson()
+    const sapOrderNoBySupplier = PO1041161391_SAP_BY_SUPPLIER
     const sapShipmentTypeBySupplier: Record<string, '지역' | '공장'> = {
-      대웅제약: '지역',
+      대웅제약: '공장',
       대웅바이오: '공장',
-      한올바이오파마: '공장',
     }
     const sapCategoryBySupplier: Record<string, 'OTC' | 'ETC'> = {
       대웅제약: 'OTC',
       대웅바이오: 'ETC',
       한올바이오파마: 'ETC',
     }
-    const products = MULTI_SUPPLIER_ORDER_ITEMS.map((item) => ({
-      supplierName: item.supplier,
-      expectedDeliveryDate: datePart,
-      category: item.type,
-      productSpec: item.name,
-      manufacturer: `${item.supplier}(주)`,
-      sellingPrice: `${item.price.toLocaleString()}원`,
-      orderQty: String(item.qty),
-      subtotal: `${item.amount.toLocaleString()}원`,
-      shippingCost: '0원',
-    }))
+    const daewongBioRowCount = MULTI_SUPPLIER_ORDER_ITEMS.filter((i) => i.supplier === '대웅바이오').length
+    let daewongPharmaIdx = 0
+    let daewongBioIdx = 0
+    const products = MULTI_SUPPLIER_ORDER_ITEMS.map((item) => {
+      const base = {
+        supplierName: item.supplier,
+        expectedDeliveryDate: datePart,
+        category: item.type,
+        productSpec: item.name,
+        manufacturer: `${item.supplier}(주)`,
+        sellingPrice: `${item.price.toLocaleString()}원`,
+        orderQty: String(item.qty),
+        subtotal: `${item.amount.toLocaleString()}원`,
+        shippingCost: '0원' as const,
+      }
+      if (item.supplier === '대웅제약') {
+        const idx = daewongPharmaIdx
+        daewongPharmaIdx += 1
+        let shipmentCell: { badge: '공장' | '지역'; rowSpan?: number } | 'omit' | undefined
+        if (idx === 0) shipmentCell = { badge: '공장' }
+        else if (idx === 1) shipmentCell = { badge: '지역', rowSpan: 5 }
+        else if (idx >= 2 && idx <= 5) shipmentCell = 'omit'
+        else shipmentCell = undefined
+        return {
+          ...base,
+          shipmentType: idx === 0 ? ('제약공장 출하' as const) : ('지역공장 출하' as const),
+          shipmentCell,
+        }
+      }
+      if (item.supplier === '대웅바이오') {
+        const idx = daewongBioIdx
+        daewongBioIdx += 1
+        const shipmentCell =
+          idx === 0
+            ? { badge: '공장' as const, rowSpan: daewongBioRowCount }
+            : ('omit' as const)
+        return {
+          ...base,
+          shipmentType: '제약공장 출하' as const,
+          shipmentCell,
+        }
+      }
+      return base
+    })
     const supplierTotals = MULTI_SUPPLIER_ORDER_ITEMS.reduce<Record<string, number>>((acc, item) => {
       acc[item.supplier] = (acc[item.supplier] ?? 0) + item.amount
       return acc
@@ -418,6 +425,15 @@ function getOrderDetail(row: OrderRow): OrderDetailData {
       sapOrderNoBySupplier,
       sapShipmentTypeBySupplier,
       sapCategoryBySupplier,
+      supplierDeliverySlots: {
+        대웅제약: {
+          factory: '2026-3-19 오후6시',
+          region: '2026-3-15 오후1시',
+        },
+        대웅바이오: {
+          region: '2026-3-18 오후1시',
+        },
+      },
       orderDateTime: orderWhen,
       orderStatus: '결제완료',
       orderStatusDate: orderWhen,

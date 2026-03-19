@@ -28,6 +28,17 @@ function parseSapLastParenText(line: string): string | null {
   return m ? m[1].trim() : null
 }
 
+/** 라인 끝 (공장)/(지역), 없으면 공급사 기본 출하구분 */
+function shipmentTypeFromSapLine(
+  line: string,
+  supplierFallback?: '공장' | '지역'
+): '공장' | '지역' | null {
+  const last = parseSapLastParenText(line)
+  if (last === '공장' || last === '지역') return last
+  if (supplierFallback === '공장' || supplierFallback === '지역') return supplierFallback
+  return null
+}
+
 /** SAP 라인 마지막 괄호 텍스트를 주문상태로 대략 매핑 */
 function mapSapLastParenToOrderStatus(raw: string): string | null {
   // 출하 단계는 앱의 발송 단계로 매핑
@@ -124,6 +135,8 @@ export type OrderDetailData = {
     shippingCost: string
     /** 출하구분: 제약공장 출하(공장) / 지역공장 출하(창고). 정렬 시 공장 우선 */
     shipmentType?: '제약공장 출하' | '지역공장 출하'
+    /** 다공급사 테이블의 출하 구분 열: 병합 시 이후 행은 'omit' */
+    shipmentCell?: { badge: '공장' | '지역'; rowSpan?: number } | 'omit'
   }[]
   supplierSummary: {
     supplier: string
@@ -149,6 +162,60 @@ export type OrderDetailData = {
   }
   vendorMessage: string
   adminMemos?: { id: string; authorName: string; content: string }[]
+  /** 토글 우측 배송 예정일: 공장·지역별 시각 문구 (키: 공급사명). 없으면 상품 첫 행 expectedDeliveryDate 한 줄 */
+  supplierDeliverySlots?: Record<string, { factory?: string; region?: string }>
+}
+
+type OrderDetailProduct = OrderDetailData['products'][number]
+type ShipmentColResolved = { badge: '공장' | '지역'; rowSpan?: number } | 'omit' | null
+
+/** 출하 구분 열: 명시 shipmentCell 또는 shipmentType·상품명·SAP 공급사 기본값 */
+function resolveShipmentColumnCell(
+  p: OrderDetailProduct,
+  detail: OrderDetailData,
+  supplierBlockName: string
+): ShipmentColResolved {
+  if (p.shipmentCell === 'omit') return 'omit'
+  if (p.shipmentCell && typeof p.shipmentCell === 'object') return p.shipmentCell
+
+  const resolvedType = p.shipmentType ?? getShipmentTypeFromProductText(p.productSpec)
+  if (resolvedType === '제약공장 출하') return { badge: '공장' }
+  if (resolvedType === '지역공장 출하') return { badge: '지역' }
+
+  const sap = detail.sapShipmentTypeBySupplier?.[normalizeSupplierForSap(supplierBlockName)]
+  if (sap === '공장' || sap === '지역') return { badge: sap }
+
+  return null
+}
+
+/**
+ * 출하 구분 정렬: 공장(0) → 지역(1) → 미구분(2).
+ * shipmentCell·omit·SAP까지 반영해 shipmentType만 없는 데이터도 공장 우선.
+ */
+function getShipmentSortPriority(
+  p: OrderDetailProduct,
+  detail: OrderDetailData,
+  supplierBlockName: string
+): number {
+  const fromTypeOrText =
+    p.shipmentType ?? getShipmentTypeFromProductText(p.productSpec)
+  if (fromTypeOrText === '제약공장 출하') return 0
+  if (fromTypeOrText === '지역공장 출하') return 1
+
+  if (p.shipmentCell === 'omit') {
+    // 병합 행: 위에서 타입을 못 찾은 경우 지역 그룹으로 간주(대웅제약 2~6행 등)
+    return 1
+  }
+
+  if (p.shipmentCell && typeof p.shipmentCell === 'object') {
+    return p.shipmentCell.badge === '공장' ? 0 : 1
+  }
+
+  const sap = detail.sapShipmentTypeBySupplier?.[normalizeSupplierForSap(supplierBlockName)]
+  if (sap === '공장') return 0
+  if (sap === '지역') return 1
+
+  return 2
 }
 
 type OrderDetailModalProps = {
@@ -654,11 +721,8 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                           {sapSuppliers.map((name) => {
                             const raw = bySupplier?.[name] ?? singleFallback ?? ''
                             if (!raw || !raw.trim()) return <td key={name} className={styles.sapOrderNoTd}>-</td>
-                            const badgeType = detail.sapShipmentTypeBySupplier?.[name]
+                            const supplierShipmentFallback = detail.sapShipmentTypeBySupplier?.[name]
                             const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-                            /** 출하구분: 공장 → 제약, 지역 → 지역 (UI 라벨) */
-                            const shipmentLabel =
-                              badgeType === '공장' ? '제약' : badgeType === '지역' ? '지역' : null
                             return (
                               <td key={name} className={styles.sapOrderNoTd}>
                                 {lines.map((line, i) => {
@@ -666,28 +730,31 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                                   const hasData = parsed.order !== '-' || parsed.delivery !== '-' || parsed.billing !== '-'
                                   const category =
                                     parseSapCategoryFromLine(line) ?? detail.sapCategoryBySupplier?.[name] ?? null
+                                  const shipmentBadge = shipmentTypeFromSapLine(line, supplierShipmentFallback)
                                   return hasData ? (
                                     <div key={i} className={styles.sapOrderBlock}>
                                       <div className={styles.sapOrderBlockNumbers}>
                                         {parsed.order} / {parsed.delivery} / {parsed.billing}
                                       </div>
-                                      {(category != null || shipmentLabel != null) && (
+                                      {(category != null || shipmentBadge != null) && (
                                         <div className={styles.sapOrderBlockOtcRow}>
                                           {category != null && (
                                             <span className={styles.sapOrderNoCategory}>{category}</span>
                                           )}
-                                          {category != null && shipmentLabel != null && (
-                                            <span className={styles.sapOrderNoCellSep}>|</span>
+                                          {category != null && shipmentBadge != null && (
+                                            <span className={styles.sapOrderNoCellSep} aria-hidden>
+                                              |
+                                            </span>
                                           )}
-                                          {shipmentLabel != null && (
+                                          {shipmentBadge != null && (
                                             <span
                                               className={
-                                                badgeType === '지역'
+                                                shipmentBadge === '지역'
                                                   ? styles.shipmentPillRegion
                                                   : styles.shipmentPillFactory
                                               }
                                             >
-                                              {shipmentLabel}
+                                              {shipmentBadge}
                                             </span>
                                           )}
                                         </div>
@@ -725,6 +792,10 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
               const costDiscount =
                 detail.supplierSummary?.find((s) => s.supplier === supplierName)?.costDiscount ?? '-'
               const expectedDelivery = products[0]?.expectedDeliveryDate ?? '-'
+              const deliverySlots = detail.supplierDeliverySlots?.[supplierName]
+              const hasFactoryRegionSlots =
+                deliverySlots != null &&
+                (deliverySlots.factory != null || deliverySlots.region != null)
               return (
                 <div key={supplierName} className={styles.supplierBlock}>
                   <div className={styles.supplierRow}>
@@ -744,9 +815,33 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                       </span>
                     </button>
                     <div className={styles.supplierShippingCol}>
-                      <span className={styles.supplierShippingLabel}>배송 정보</span>
+                      <span className={styles.supplierShippingLabel}>배송 예정일</span>
                       <div className={styles.supplierShippingBody}>
-                        <span>예정일 {expectedDelivery}</span>
+                        {hasFactoryRegionSlots && deliverySlots ? (
+                          <div className={styles.supplierShippingSplit}>
+                            {deliverySlots.factory != null && (
+                              <div className={styles.supplierShippingSplitBlock}>
+                                <span className={styles.shipmentPillFactory}>공장</span>
+                                <span className={styles.supplierShippingSlotDate}>
+                                  {deliverySlots.factory}
+                                </span>
+                              </div>
+                            )}
+                            {deliverySlots.factory != null && deliverySlots.region != null && (
+                              <div className={styles.supplierShippingDivider} aria-hidden />
+                            )}
+                            {deliverySlots.region != null && (
+                              <div className={styles.supplierShippingSplitBlock}>
+                                <span className={styles.shipmentPillRegion}>지역</span>
+                                <span className={styles.supplierShippingSlotDate}>
+                                  {deliverySlots.region}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span>{expectedDelivery}</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -755,6 +850,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                       <table className={`${styles.detailTable} ${styles.detailTableCenter}`}>
                         <thead>
                           <tr>
+                            {hasMultipleSuppliers && <th>출하 구분</th>}
                             {hasMultipleSuppliers && <th>주문상태</th>}
                             <th>공급사</th>
                             <th>구분</th>
@@ -768,25 +864,49 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                         <tbody>
                           {[...products]
                             .sort((a, b) => {
-                              const resolved = (p: (typeof products)[0]) =>
-                                p.shipmentType || getShipmentTypeFromProductText(p.productSpec)
-                              const order: Record<string, number> = { '제약공장 출하': 0, '지역공장 출하': 1 }
-                              const ai = order[resolved(a)] ?? 2
-                              const bi = order[resolved(b)] ?? 2
-                              return ai - bi
+                              const pa = getShipmentSortPriority(a, detail, supplierName)
+                              const pb = getShipmentSortPriority(b, detail, supplierName)
+                              if (pa !== pb) return pa - pb
+                              return 0
                             })
                             .map((p, i) => {
                               const resolvedType = p.shipmentType ?? getShipmentTypeFromProductText(p.productSpec)
                               const isFactory = resolvedType === '제약공장 출하'
                               const isRegion = resolvedType === '지역공장 출하'
                               const badgeLabel = isFactory ? '공장' : isRegion ? '지역' : null
+                              const shipCol = resolveShipmentColumnCell(p, detail, supplierName)
                               return (
-                              <tr key={`${supplierName}-${i}`}>
+                              <tr key={`${supplierName}-${i}-${p.productSpec}`}>
+                                {hasMultipleSuppliers &&
+                                  (shipCol === 'omit' ? null : (
+                                    <td
+                                      className={styles.shipmentColCell}
+                                      rowSpan={
+                                        shipCol && typeof shipCol === 'object' && shipCol.rowSpan
+                                          ? shipCol.rowSpan
+                                          : undefined
+                                      }
+                                    >
+                                      {shipCol && typeof shipCol === 'object' ? (
+                                        <span
+                                          className={
+                                            shipCol.badge === '지역'
+                                              ? styles.shipmentPillRegion
+                                              : styles.shipmentPillFactory
+                                          }
+                                        >
+                                          {shipCol.badge}
+                                        </span>
+                                      ) : (
+                                        <span className={styles.shipmentColEmpty}>-</span>
+                                      )}
+                                    </td>
+                                  ))}
                                 {hasMultipleSuppliers && <td>{supplierOrderStatus}</td>}
                                 <td>
                                   <div className={styles.supplierCellInner}>
                                     <span>{supplierName ?? '-'}</span>
-                                    {badgeLabel != null && (
+                                    {!hasMultipleSuppliers && badgeLabel != null && (
                                       <span
                                         className={
                                           isFactory ? styles.shipmentPillFactory : styles.shipmentPillRegion

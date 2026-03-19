@@ -679,7 +679,7 @@
 }
 
 .sapOrderBlockNumbers {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #222;
   line-height: 1.45;
@@ -826,7 +826,7 @@
   gap: 4px;
   padding: 10px 14px;
   min-width: 168px;
-  max-width: 220px;
+  max-width: 280px;
   background: #f7f8fa;
   border-left: 1px solid #e8e8e8;
 }
@@ -836,6 +836,8 @@
   font-weight: 700;
   color: #888;
   letter-spacing: -0.02em;
+  text-align: center;
+  width: 100%;
 }
 
 .supplierShippingBody {
@@ -845,7 +847,41 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+  width: 100%;
+}
+
+.supplierShippingSplit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: center;
+}
+
+.supplierShippingSplitBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.supplierShippingSlotDate {
+  font-size: 12px;
+  font-weight: 500;
+  color: #444;
+  line-height: 1.35;
+}
+
+.supplierShippingDivider {
+  width: 100%;
+  height: 0;
+  margin: 2px 0;
+  border: none;
+  border-top: 1px dashed #c5c5c5;
 }
 
 .supplierHeader:hover {
@@ -927,13 +963,26 @@
 }
 
 .shipmentPillFactory {
+  color: #e03f0c;
+  border: 1px solid #e03f0c;
+}
+
+.shipmentPillRegion {
   color: #7f8ffc;
   border: 1px solid #7f8ffc;
 }
 
-.shipmentPillRegion {
-  color: #e03f0c;
-  border: 1px solid #e03f0c;
+/* 다공급사 상품 테이블: 출하 구분 열 (rowspan 시 세로 중앙) */
+.shipmentColCell {
+  text-align: center;
+  vertical-align: middle;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.shipmentColEmpty {
+  color: #bbb;
+  font-size: 13px;
 }
 
 .detailTable td {
