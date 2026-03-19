@@ -182,6 +182,20 @@
   margin-bottom: 14px;
 }
 
+.dateError {
+  width: 100%;
+  color: #e03f0c;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: -6px;
+}
+
+.searchError {
+  color: #e03f0c;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .filterLabel {
   font-size: 13px;
   color: #333;
@@ -565,6 +579,11 @@
 
 .table tbody tr:hover .colSticky3 {
   background: #f8f9fb;
+}
+
+/* 다중 공급사 주문: 다음 주문 그룹 시작 행 구분 */
+.trOrderGroupStart td {
+  border-top: 2px solid #d0d4dc;
 }
 
 .table input[type="checkbox"] {
