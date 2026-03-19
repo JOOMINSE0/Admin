@@ -28,6 +28,17 @@ function parseSapLastParenText(line: string): string | null {
   return m ? m[1].trim() : null
 }
 
+/** 라인 끝 (공장)/(지역), 없으면 공급사 기본 출하구분 */
+function shipmentTypeFromSapLine(
+  line: string,
+  supplierFallback?: '공장' | '지역'
+): '공장' | '지역' | null {
+  const last = parseSapLastParenText(line)
+  if (last === '공장' || last === '지역') return last
+  if (supplierFallback === '공장' || supplierFallback === '지역') return supplierFallback
+  return null
+}
+
 /** SAP 라인 마지막 괄호 텍스트를 주문상태로 대략 매핑 */
 function mapSapLastParenToOrderStatus(raw: string): string | null {
   // 출하 단계는 앱의 발송 단계로 매핑
@@ -124,6 +135,8 @@ export type OrderDetailData = {
     shippingCost: string
     /** 출하구분: 제약공장 출하(공장) / 지역공장 출하(창고). 정렬 시 공장 우선 */
     shipmentType?: '제약공장 출하' | '지역공장 출하'
+    /** 다공급사 테이블의 출하 구분 열: 병합 시 이후 행은 'omit' */
+    shipmentCell?: { badge: '공장' | '지역'; rowSpan?: number } | 'omit'
   }[]
   supplierSummary: {
     supplier: string
@@ -149,6 +162,60 @@ export type OrderDetailData = {
   }
   vendorMessage: string
   adminMemos?: { id: string; authorName: string; content: string }[]
+  /** 토글 우측 배송 예정일: 공장·지역별 시각 문구 (키: 공급사명). 없으면 상품 첫 행 expectedDeliveryDate 한 줄 */
+  supplierDeliverySlots?: Record<string, { factory?: string; region?: string }>
+}
+
+type OrderDetailProduct = OrderDetailData['products'][number]
+type ShipmentColResolved = { badge: '공장' | '지역'; rowSpan?: number } | 'omit' | null
+
+/** 출하 구분 열: 명시 shipmentCell 또는 shipmentType·상품명·SAP 공급사 기본값 */
+function resolveShipmentColumnCell(
+  p: OrderDetailProduct,
+  detail: OrderDetailData,
+  supplierBlockName: string
+): ShipmentColResolved {
+  if (p.shipmentCell === 'omit') return 'omit'
+  if (p.shipmentCell && typeof p.shipmentCell === 'object') return p.shipmentCell
+
+  const resolvedType = p.shipmentType ?? getShipmentTypeFromProductText(p.productSpec)
+  if (resolvedType === '제약공장 출하') return { badge: '공장' }
+  if (resolvedType === '지역공장 출하') return { badge: '지역' }
+
+  const sap = detail.sapShipmentTypeBySupplier?.[normalizeSupplierForSap(supplierBlockName)]
+  if (sap === '공장' || sap === '지역') return { badge: sap }
+
+  return null
+}
+
+/**
+ * 출하 구분 정렬: 공장(0) → 지역(1) → 미구분(2).
+ * shipmentCell·omit·SAP까지 반영해 shipmentType만 없는 데이터도 공장 우선.
+ */
+function getShipmentSortPriority(
+  p: OrderDetailProduct,
+  detail: OrderDetailData,
+  supplierBlockName: string
+): number {
+  const fromTypeOrText =
+    p.shipmentType ?? getShipmentTypeFromProductText(p.productSpec)
+  if (fromTypeOrText === '제약공장 출하') return 0
+  if (fromTypeOrText === '지역공장 출하') return 1
+
+  if (p.shipmentCell === 'omit') {
+    // 병합 행: 위에서 타입을 못 찾은 경우 지역 그룹으로 간주(대웅제약 2~6행 등)
+    return 1
+  }
+
+  if (p.shipmentCell && typeof p.shipmentCell === 'object') {
+    return p.shipmentCell.badge === '공장' ? 0 : 1
+  }
+
+  const sap = detail.sapShipmentTypeBySupplier?.[normalizeSupplierForSap(supplierBlockName)]
+  if (sap === '공장') return 0
+  if (sap === '지역') return 1
+
+  return 2
 }
 
 type OrderDetailModalProps = {
@@ -186,6 +253,10 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
   const [showPartialCancelForm, setShowPartialCancelForm] = useState(false)
   const [partialCancelRecords, setPartialCancelRecords] = useState<PartialCancelRecord[]>([])
   const [partialCancelInputs, setPartialCancelInputs] = useState<Record<number, PartialCancelRowInput>>({})
+  /** 부분취소 폼에서 선택된 상품 행 인덱스 */
+  const [partialCancelSelectedIds, setPartialCancelSelectedIds] = useState<Set<number>>(() => new Set())
+  const [partialCancelConfirmOpen, setPartialCancelConfirmOpen] = useState(false)
+  const [partialCancelPendingRecords, setPartialCancelPendingRecords] = useState<PartialCancelRecord[]>([])
   const [showAccumHistoryModal, setShowAccumHistoryModal] = useState(false)
 
   useEffect(() => {
@@ -196,6 +267,9 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
     setShowPartialCancelForm(false)
     setPartialCancelRecords([])
     setPartialCancelInputs({})
+    setPartialCancelSelectedIds(new Set())
+    setPartialCancelConfirmOpen(false)
+    setPartialCancelPendingRecords([])
     setShowAccumHistoryModal(false)
   }, [detail?.orderNo, detail?.adminMemos, detail?.products])
 
@@ -244,12 +318,38 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
 
   const openPartialCancelForm = () => {
     setPartialCancelInputs({})
+    if (detail?.products?.length) {
+      setPartialCancelSelectedIds(new Set(detail.products.map((_, i) => i)))
+    } else {
+      setPartialCancelSelectedIds(new Set())
+    }
     setShowPartialCancelForm(true)
   }
 
   const closePartialCancelForm = () => {
     setShowPartialCancelForm(false)
     setPartialCancelInputs({})
+    setPartialCancelSelectedIds(new Set())
+    setPartialCancelConfirmOpen(false)
+    setPartialCancelPendingRecords([])
+  }
+
+  const togglePartialCancelRow = (index: number) => {
+    setPartialCancelSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }
+
+  const togglePartialCancelSelectAll = () => {
+    if (!detail?.products?.length) return
+    const n = detail.products.length
+    setPartialCancelSelectedIds((prev) => {
+      if (prev.size === n) return new Set()
+      return new Set(detail.products.map((_, i) => i))
+    })
   }
 
   const setPartialCancelInput = (index: number, field: keyof PartialCancelRowInput, value: string) => {
@@ -269,20 +369,47 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
     return Number.isNaN(n) ? 0 : n
   }
 
-  const savePartialCancel = () => {
+  /** 주문 수량 문자열에서 최대 수량(숫자) 추출 */
+  const parseOrderQtyMax = (q: string | undefined): number => {
+    if (!q) return 0
+    const m = String(q).match(/\d+/)
+    if (!m) return 0
+    const n = parseInt(m[0], 10)
+    return Number.isNaN(n) ? 0 : n
+  }
+
+  /** 저장 클릭 → 유효성 검사 후 확인 모달 */
+  const requestPartialCancelSave = () => {
     if (!detail) return
     const newRecords: PartialCancelRecord[] = []
+    const errors: string[] = []
+
     detail.products.forEach((p, index) => {
+      if (!partialCancelSelectedIds.has(index)) return
       const row = partialCancelInputs[index]
       if (!row) return
-      const cancelQty = row.cancelQty.trim()
+      const cancelQtyStr = row.cancelQty.trim()
       const reason = row.reason.trim()
-      if (!cancelQty && (!reason || reason === '선택')) return
-      const cancelNum = parseInt(cancelQty, 10) || 0
+      if (!cancelQtyStr && (!reason || reason === '선택')) return
+
+      const cancelNum = parseInt(cancelQtyStr, 10)
+      if (Number.isNaN(cancelNum) || cancelNum < 1) {
+        errors.push(`「${p.productSpec ?? '상품'}」: 취소 수량은 1 이상의 숫자로 입력해 주세요.`)
+        return
+      }
+
+      const maxQty = parseOrderQtyMax(p.orderQty)
+      if (maxQty > 0 && cancelNum > maxQty) {
+        errors.push(
+          `「${p.productSpec ?? '상품'}」: 취소 수량은 기존 주문 수량(${p.orderQty})을 넘을 수 없습니다.`
+        )
+        return
+      }
+
       const unitPrice = parsePrice(p.sellingPrice)
       const accumNum = unitPrice * cancelNum
       newRecords.push({
-        id: `pc-${detail.orderNo}-${Date.now()}-${index}`,
+        id: `pc-${detail.orderNo}-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
         supplierName: p.supplierName,
         productSpec: p.productSpec,
         manufacturer: p.manufacturer,
@@ -294,9 +421,30 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
         cardCancelAmount: '0 원',
       })
     })
-    if (newRecords.length > 0) {
-      setPartialCancelRecords((prev) => [...prev, ...newRecords])
+
+    if (errors.length > 0) {
+      window.alert(errors.join('\n'))
+      return
     }
+    if (newRecords.length === 0) {
+      window.alert('선택한 상품 중 부분취소할 항목에 취소 수량을 입력해 주세요.')
+      return
+    }
+
+    setPartialCancelPendingRecords(newRecords)
+    setPartialCancelConfirmOpen(true)
+  }
+
+  /** 확인 모달에서 확정 시에만 부분취소 내역 반영 */
+  const confirmPartialCancelSave = () => {
+    const toAdd = partialCancelPendingRecords
+    if (toAdd.length === 0) {
+      setPartialCancelConfirmOpen(false)
+      return
+    }
+    setPartialCancelPendingRecords([])
+    setPartialCancelConfirmOpen(false)
+    setPartialCancelRecords((prev) => [...prev, ...toAdd])
     closePartialCancelForm()
   }
 
@@ -324,6 +472,16 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
     status === '발송 완료' ? { label: '발송 준비중 처리', className: styles.btnShip } :
     null
 
+  /** 대웅그룹 공급사만 있을 때(세 곳 중 하나만 또는 여러 곳만) 부분취소 비노출. 타 공급사와 섞이면 노출 */
+  const sapNames = SAP_TARGET_SUPPLIER_NAMES as readonly string[]
+  const hasDaewongGroupProduct = detail.products.some((p) =>
+    sapNames.includes(normalizeSupplierForSap(p.supplierName))
+  )
+  const hasNonDaewongGroupProduct = detail.products.some(
+    (p) => !sapNames.includes(normalizeSupplierForSap(p.supplierName))
+  )
+  const hidePartialCancelDaewongGroupOnly = hasDaewongGroupProduct && !hasNonDaewongGroupProduct
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -333,7 +491,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
           </h2>
           <div className={styles.actions}>
             <button type="button" className={styles.btnPrint}>프린트하기</button>
-            {(status === '주문 완료' || status === '결제완료') && (
+            {(status === '주문 완료' || status === '결제완료') && !hidePartialCancelDaewongGroupOnly && (
               <button type="button" className={styles.btnPartialCancel} onClick={openPartialCancelForm}>부분취소</button>
             )}
             {(status === '주문 완료' || status === '결제완료') && (
@@ -343,6 +501,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                 onClick={() => {
                   if (detail?.orderNo && onOrderCancel) {
                     onOrderCancel(detail.orderNo)
+                    window.alert('주문 취소가 완료되었습니다.')
                     onClose()
                   }
                 }}
@@ -377,7 +536,25 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                 <table className={styles.partialCancelTable}>
                   <thead>
                     <tr>
-                      <th>선택</th>
+                      <th className={styles.partialCancelThSelect}>
+                        <input
+                          type="checkbox"
+                          aria-label="부분취소 행 전체 선택"
+                          checked={
+                            (detail.products.length > 0 &&
+                              partialCancelSelectedIds.size === detail.products.length) ||
+                            false
+                          }
+                          ref={(el) => {
+                            if (el) {
+                              const n = detail.products.length
+                              const s = partialCancelSelectedIds.size
+                              el.indeterminate = n > 0 && s > 0 && s < n
+                            }
+                          }}
+                          onChange={togglePartialCancelSelectAll}
+                        />
+                      </th>
                       <th>주문번호</th>
                       <th>공급처</th>
                       <th>자체상품번호</th>
@@ -394,14 +571,21 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                   <tbody>
                     {detail.products.map((p, index) => (
                       <tr key={`pc-row-${index}`}>
-                        <td><input type="checkbox" defaultChecked /></td>
+                        <td className={styles.partialCancelTdSelect}>
+                          <input
+                            type="checkbox"
+                            aria-label={`${p.productSpec ?? '상품'} 선택`}
+                            checked={partialCancelSelectedIds.has(index)}
+                            onChange={() => togglePartialCancelRow(index)}
+                          />
+                        </td>
                         <td>{detail.orderNo}</td>
                         <td>{p.supplierName}</td>
                         <td>{1003432349 + index}</td>
                         <td>{p.productSpec}</td>
                         <td>{p.sellingPrice}</td>
                         <td>{p.orderQty}</td>
-                        <td>40</td>
+                        <td>{p.orderQty ?? '-'}</td>
                         <td>
                           <select
                             className={styles.partialCancelSelect}
@@ -442,7 +626,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                 </table>
               </div>
               <div className={styles.partialCancelActions}>
-                <button type="button" className={styles.btnPartialCancelSubmit} onClick={savePartialCancel}>저장</button>
+                <button type="button" className={styles.btnPartialCancelSubmit} onClick={requestPartialCancelSave}>저장</button>
                 <button type="button" className={styles.btnPartialCancelCancel} onClick={closePartialCancelForm}>취소</button>
               </div>
             </div>
@@ -537,11 +721,8 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                           {sapSuppliers.map((name) => {
                             const raw = bySupplier?.[name] ?? singleFallback ?? ''
                             if (!raw || !raw.trim()) return <td key={name} className={styles.sapOrderNoTd}>-</td>
-                            const badgeType = detail.sapShipmentTypeBySupplier?.[name]
+                            const supplierShipmentFallback = detail.sapShipmentTypeBySupplier?.[name]
                             const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-                            /** 출하구분: 공장 → 제약, 지역 → 지역 (UI 라벨) */
-                            const shipmentLabel =
-                              badgeType === '공장' ? '제약' : badgeType === '지역' ? '지역' : null
                             return (
                               <td key={name} className={styles.sapOrderNoTd}>
                                 {lines.map((line, i) => {
@@ -549,28 +730,31 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                                   const hasData = parsed.order !== '-' || parsed.delivery !== '-' || parsed.billing !== '-'
                                   const category =
                                     parseSapCategoryFromLine(line) ?? detail.sapCategoryBySupplier?.[name] ?? null
+                                  const shipmentBadge = shipmentTypeFromSapLine(line, supplierShipmentFallback)
                                   return hasData ? (
                                     <div key={i} className={styles.sapOrderBlock}>
                                       <div className={styles.sapOrderBlockNumbers}>
                                         {parsed.order} / {parsed.delivery} / {parsed.billing}
                                       </div>
-                                      {(category != null || shipmentLabel != null) && (
+                                      {(category != null || shipmentBadge != null) && (
                                         <div className={styles.sapOrderBlockOtcRow}>
                                           {category != null && (
                                             <span className={styles.sapOrderNoCategory}>{category}</span>
                                           )}
-                                          {category != null && shipmentLabel != null && (
-                                            <span className={styles.sapOrderNoCellSep}>|</span>
+                                          {category != null && shipmentBadge != null && (
+                                            <span className={styles.sapOrderNoCellSep} aria-hidden>
+                                              |
+                                            </span>
                                           )}
-                                          {shipmentLabel != null && (
+                                          {shipmentBadge != null && (
                                             <span
                                               className={
-                                                badgeType === '지역'
+                                                shipmentBadge === '지역'
                                                   ? styles.shipmentPillRegion
                                                   : styles.shipmentPillFactory
                                               }
                                             >
-                                              {shipmentLabel}
+                                              {shipmentBadge}
                                             </span>
                                           )}
                                         </div>
@@ -608,6 +792,10 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
               const costDiscount =
                 detail.supplierSummary?.find((s) => s.supplier === supplierName)?.costDiscount ?? '-'
               const expectedDelivery = products[0]?.expectedDeliveryDate ?? '-'
+              const deliverySlots = detail.supplierDeliverySlots?.[supplierName]
+              const hasFactoryRegionSlots =
+                deliverySlots != null &&
+                (deliverySlots.factory != null || deliverySlots.region != null)
               return (
                 <div key={supplierName} className={styles.supplierBlock}>
                   <div className={styles.supplierRow}>
@@ -627,9 +815,33 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                       </span>
                     </button>
                     <div className={styles.supplierShippingCol}>
-                      <span className={styles.supplierShippingLabel}>배송 정보</span>
+                      <span className={styles.supplierShippingLabel}>배송 예정일</span>
                       <div className={styles.supplierShippingBody}>
-                        <span>예정일 {expectedDelivery}</span>
+                        {hasFactoryRegionSlots && deliverySlots ? (
+                          <div className={styles.supplierShippingSplit}>
+                            {deliverySlots.factory != null && (
+                              <div className={styles.supplierShippingSplitBlock}>
+                                <span className={styles.shipmentPillFactory}>공장</span>
+                                <span className={styles.supplierShippingSlotDate}>
+                                  {deliverySlots.factory}
+                                </span>
+                              </div>
+                            )}
+                            {deliverySlots.factory != null && deliverySlots.region != null && (
+                              <div className={styles.supplierShippingDivider} aria-hidden />
+                            )}
+                            {deliverySlots.region != null && (
+                              <div className={styles.supplierShippingSplitBlock}>
+                                <span className={styles.shipmentPillRegion}>지역</span>
+                                <span className={styles.supplierShippingSlotDate}>
+                                  {deliverySlots.region}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span>{expectedDelivery}</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -638,6 +850,7 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                       <table className={`${styles.detailTable} ${styles.detailTableCenter}`}>
                         <thead>
                           <tr>
+                            {hasMultipleSuppliers && <th>출하 구분</th>}
                             {hasMultipleSuppliers && <th>주문상태</th>}
                             <th>공급사</th>
                             <th>구분</th>
@@ -651,25 +864,49 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                         <tbody>
                           {[...products]
                             .sort((a, b) => {
-                              const resolved = (p: (typeof products)[0]) =>
-                                p.shipmentType || getShipmentTypeFromProductText(p.productSpec)
-                              const order: Record<string, number> = { '제약공장 출하': 0, '지역공장 출하': 1 }
-                              const ai = order[resolved(a)] ?? 2
-                              const bi = order[resolved(b)] ?? 2
-                              return ai - bi
+                              const pa = getShipmentSortPriority(a, detail, supplierName)
+                              const pb = getShipmentSortPriority(b, detail, supplierName)
+                              if (pa !== pb) return pa - pb
+                              return 0
                             })
                             .map((p, i) => {
                               const resolvedType = p.shipmentType ?? getShipmentTypeFromProductText(p.productSpec)
                               const isFactory = resolvedType === '제약공장 출하'
                               const isRegion = resolvedType === '지역공장 출하'
                               const badgeLabel = isFactory ? '공장' : isRegion ? '지역' : null
+                              const shipCol = resolveShipmentColumnCell(p, detail, supplierName)
                               return (
-                              <tr key={`${supplierName}-${i}`}>
+                              <tr key={`${supplierName}-${i}-${p.productSpec}`}>
+                                {hasMultipleSuppliers &&
+                                  (shipCol === 'omit' ? null : (
+                                    <td
+                                      className={styles.shipmentColCell}
+                                      rowSpan={
+                                        shipCol && typeof shipCol === 'object' && shipCol.rowSpan
+                                          ? shipCol.rowSpan
+                                          : undefined
+                                      }
+                                    >
+                                      {shipCol && typeof shipCol === 'object' ? (
+                                        <span
+                                          className={
+                                            shipCol.badge === '지역'
+                                              ? styles.shipmentPillRegion
+                                              : styles.shipmentPillFactory
+                                          }
+                                        >
+                                          {shipCol.badge}
+                                        </span>
+                                      ) : (
+                                        <span className={styles.shipmentColEmpty}>-</span>
+                                      )}
+                                    </td>
+                                  ))}
                                 {hasMultipleSuppliers && <td>{supplierOrderStatus}</td>}
                                 <td>
                                   <div className={styles.supplierCellInner}>
                                     <span>{supplierName ?? '-'}</span>
-                                    {badgeLabel != null && (
+                                    {!hasMultipleSuppliers && badgeLabel != null && (
                                       <span
                                         className={
                                           isFactory ? styles.shipmentPillFactory : styles.shipmentPillRegion
@@ -857,6 +1094,67 @@ export default function OrderDetailModal({ detail, onClose, currentUserName = '�
                     </div>
                   )
                 })()}
+              </div>
+            </div>
+          )}
+
+          {partialCancelConfirmOpen && (
+            <div
+              className={styles.partialCancelConfirmOverlay}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="partial-cancel-confirm-title"
+              onClick={() => setPartialCancelConfirmOpen(false)}
+            >
+              <div
+                className={styles.partialCancelConfirmBox}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 id="partial-cancel-confirm-title" className={styles.partialCancelConfirmTitle}>
+                  부분취소 확인
+                </h3>
+                <p className={styles.partialCancelConfirmLead}>
+                  아래 내용으로 부분취소를 진행합니다. 내용을 확인해 주세요.
+                </p>
+                <ul className={styles.partialCancelConfirmList}>
+                  {partialCancelPendingRecords.map((r) => (
+                    <li key={r.id} className={styles.partialCancelConfirmItem}>
+                      <div className={styles.partialCancelConfirmRow}>
+                        <span className={styles.partialCancelConfirmLabel}>상품명</span>
+                        <span className={styles.partialCancelConfirmValue}>{r.productSpec}</span>
+                      </div>
+                      <div className={styles.partialCancelConfirmRow}>
+                        <span className={styles.partialCancelConfirmLabel}>기존 주문 수량</span>
+                        <span className={styles.partialCancelConfirmValue}>{r.orderQty}</span>
+                      </div>
+                      <div className={styles.partialCancelConfirmRow}>
+                        <span className={styles.partialCancelConfirmLabel}>취소 주문 수량</span>
+                        <span className={styles.partialCancelConfirmValue}>{r.cancelReturnQty}</span>
+                      </div>
+                      <div className={styles.partialCancelConfirmRow}>
+                        <span className={styles.partialCancelConfirmLabel}>적립금액</span>
+                        <span className={styles.partialCancelConfirmValue}>{r.depositAccum}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <p className={styles.partialCancelConfirmQuestion}>정말 부분취소하시겠습니까?</p>
+                <div className={styles.partialCancelConfirmActions}>
+                  <button
+                    type="button"
+                    className={styles.btnPartialCancelConfirmOk}
+                    onClick={confirmPartialCancelSave}
+                  >
+                    확인
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.btnPartialCancelConfirmCancel}
+                    onClick={() => setPartialCancelConfirmOpen(false)}
+                  >
+                    취소
+                  </button>
+                </div>
               </div>
             </div>
           )}
