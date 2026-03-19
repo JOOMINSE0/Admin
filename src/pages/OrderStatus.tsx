@@ -216,6 +216,68 @@ function addDays(base: Date, days: number) {
 
 type OrderRow = (typeof mockOrders)[number]
 
+function hashStringToInt(s: string): number {
+  // stable pseudo-hash (0 ~ 2^32-1)
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0
+  }
+  return h
+}
+
+function bundleOrders(rows: OrderRow[]): OrderRow[] {
+  // "묶음주문기준" 모의 구현:
+  // - 같은 상태/주문일자/공급사/약국(+배송지역)이면 1개의 묶음으로 집계
+  type Agg = {
+    base: OrderRow
+    orderAmount: number
+    salesAmount: number
+    supplyAmount: number
+    tax: number
+    paymentAmount: number
+    finalAmount: number
+  }
+
+  const byKey = new Map<string, Agg>()
+  rows.forEach((r) => {
+    const orderDate = r.orderDateTime.slice(0, 10)
+    const deliverySido = (r as any).deliverySido ?? ''
+    const deliveryGugun = (r as any).deliveryGugun ?? ''
+    const deliveryEup = (r as any).deliveryEup ?? ''
+    const key = `${r.orderStatus}|${orderDate}|${r.supplier}|${r.pharmacyName}|${deliverySido}|${deliveryGugun}|${deliveryEup}`
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, {
+        base: r,
+        orderAmount: r.orderAmount,
+        salesAmount: r.salesAmount,
+        supplyAmount: r.supplyAmount,
+        tax: r.tax,
+        paymentAmount: r.paymentAmount,
+        finalAmount: r.finalAmount,
+      })
+      return
+    }
+    existing.orderAmount += r.orderAmount
+    existing.salesAmount += r.salesAmount
+    existing.supplyAmount += r.supplyAmount
+    existing.tax += r.tax
+    existing.paymentAmount += r.paymentAmount
+    existing.finalAmount += r.finalAmount
+  })
+
+  return Array.from(byKey.entries()).map(([key, a]) => ({
+    ...a.base,
+    id: hashStringToInt(key),
+    orderAmount: a.orderAmount,
+    salesAmount: a.salesAmount,
+    supplyAmount: a.supplyAmount,
+    tax: a.tax,
+    paymentAmount: a.paymentAmount,
+    finalAmount: a.finalAmount,
+  }))
+}
+
 function getOrderDetail(row: OrderRow): OrderDetailData {
   if (row.orderNo === SHIPPED_ORDER_NO) {
     const sapLines = [
@@ -509,6 +571,9 @@ export default function OrderStatus() {
     filteredOrders = filteredOrders.filter(shippedInRange)
   }
 
+  // 묶음주문기준 적용: 목록/건수/요약/페이지네이션 재조회 기준이 되는 데이터
+  const displayedOrders = tab === 'bundle' ? bundleOrders(filteredOrders) : filteredOrders
+
   const statusCounts = getStatusCounts(ordersWithOverrides)
   // 발송완료 탭 건수: 기간 필터 적용 후 건수로 표시 (기본 기간에 0건이면 0건으로 표시)
   const shippedCountInRange = ordersWithOverrides
@@ -520,28 +585,33 @@ export default function OrderStatus() {
   }
 
   const PAGE_SIZE = 10
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(displayedOrders.length / PAGE_SIZE))
   const safePage = Math.min(currentPage, totalPages)
-  const paginatedOrders = filteredOrders.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const paginatedOrders = displayedOrders.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeStatus, shippedDateBasis, dateFrom, dateTo, deliverySido, deliveryGugun, deliveryEup, allStatusFilter])
+  }, [tab, activeStatus, shippedDateBasis, dateFrom, dateTo, deliverySido, deliveryGugun, deliveryEup, allStatusFilter])
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages >= 1) setCurrentPage(1)
   }, [currentPage, totalPages])
 
+  // 선택 상태는 탭 이동 시 초기화
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [tab, activeStatus])
+
   const allFilteredSelected =
-    filteredOrders.length > 0 && filteredOrders.every((o) => selectedIds.has(o.id))
+    displayedOrders.length > 0 && displayedOrders.every((o) => selectedIds.has(o.id))
   const someFilteredSelected =
-    filteredOrders.some((o) => selectedIds.has(o.id)) && !allFilteredSelected
+    displayedOrders.some((o) => selectedIds.has(o.id)) && !allFilteredSelected
 
   const toggleSelectAll = () => {
     if (allFilteredSelected) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(filteredOrders.map((o) => o.id)))
+      setSelectedIds(new Set(displayedOrders.map((o) => o.id)))
     }
   }
 
@@ -553,6 +623,11 @@ export default function OrderStatus() {
       return next
     })
   }
+
+  const summaryOrderAmount = displayedOrders.reduce((sum, r) => sum + r.orderAmount, 0)
+  const summaryPaymentAmount = displayedOrders.reduce((sum, r) => sum + r.paymentAmount, 0)
+  const summaryFinalAmount = displayedOrders.reduce((sum, r) => sum + r.finalAmount, 0)
+  const summaryCardPartialCancel = Math.max(summaryPaymentAmount - summaryFinalAmount, 0)
 
   const setQuickDate = (type: 'today' | '1day' | '1week' | '1month') => {
     const today = new Date()
@@ -795,11 +870,11 @@ export default function OrderStatus() {
 
       <CollapsibleSection title="주문금액" defaultOpen={true}>
         <div className={styles.summaryRow}>
-          <span>주문금액 3,430,912 원</span>
+          <span>주문금액 {summaryOrderAmount.toLocaleString()} 원</span>
           <span>배송비 0 원</span>
-          <span>결제금액 3,379,009 원</span>
-          <span>카드 부분 취소 0 원</span>
-          <span>최종결제금액 3,379,009 원</span>
+          <span>결제금액 {summaryPaymentAmount.toLocaleString()} 원</span>
+          <span>카드 부분 취소 {summaryCardPartialCancel.toLocaleString()} 원</span>
+          <span>최종결제금액 {summaryFinalAmount.toLocaleString()} 원</span>
         </div>
       </CollapsibleSection>
 
@@ -807,15 +882,15 @@ export default function OrderStatus() {
         <div className={styles.tableHeader}>
           <h2 className={styles.tableTitle}>주문내역</h2>
           <div className={styles.tableActions}>
-            <span className={styles.totalCount}>전체 {filteredOrders.length}건</span>
+            <span className={styles.totalCount}>전체 {displayedOrders.length}건</span>
             <button
               type="button"
               className={styles.btnExcel}
               onClick={() => {
                 const toExport =
-                  filteredOrders.some((o) => selectedIds.has(o.id))
-                    ? filteredOrders.filter((o) => selectedIds.has(o.id))
-                    : filteredOrders
+                  displayedOrders.some((o) => selectedIds.has(o.id))
+                    ? displayedOrders.filter((o) => selectedIds.has(o.id))
+                    : displayedOrders
                 downloadOrderExcel(toExport)
               }}
             >
@@ -923,7 +998,7 @@ export default function OrderStatus() {
             </button>
             <span className={styles.pageInfo}>
               {totalPages > 0
-                ? `${(safePage - 1) * PAGE_SIZE + 1}-${Math.min(safePage * PAGE_SIZE, filteredOrders.length)} / 전체 ${filteredOrders.length}건`
+                ? `${(safePage - 1) * PAGE_SIZE + 1}-${Math.min(safePage * PAGE_SIZE, displayedOrders.length)} / 전체 ${displayedOrders.length}건`
                 : `0 / 전체 0건`}
             </span>
             <div className={styles.pageNumbers}>
