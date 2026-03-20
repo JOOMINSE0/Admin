@@ -534,8 +534,9 @@
   font-weight: 700;
   color: #334155;
   line-height: 1.5;
-  white-space: nowrap;
-  overflow-x: auto;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }

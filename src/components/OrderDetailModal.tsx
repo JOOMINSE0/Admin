@@ -54,13 +54,32 @@ function parseSapLastParenText(line: string): string | null {
   return m ? m[1].trim() : null
 }
 
+/**
+ * SAP 라인 끝에서 (공장)/(지역)을 찾음. 끝에 (출하완료) 등이 여러 겹이면 벗겨 가며 탐색.
+ * `...빌링(xxx) (지역)`처럼 공백 뒤 접미어도 확실히 인식.
+ */
+function parseTrailingFactoryRegionFromSapLine(line: string): '공장' | '지역' | null {
+  const explicit = line.trim().match(/\((공장|지역)\)\s*$/)
+  if (explicit) return explicit[1] as '공장' | '지역'
+
+  let s = line.trimEnd()
+  while (s.length > 0) {
+    const m = s.match(/\(([^()]*)\)\s*$/)
+    if (!m || m.index === undefined) break
+    const inner = m[1].trim()
+    if (inner === '공장' || inner === '지역') return inner
+    s = s.slice(0, m.index).trimEnd()
+  }
+  return null
+}
+
 /** 라인 끝 (공장)/(지역), 없으면 공급사 기본 출하구분 */
 function shipmentTypeFromSapLine(
   line: string,
   supplierFallback?: '공장' | '지역'
 ): '공장' | '지역' | null {
-  const last = parseSapLastParenText(line)
-  if (last === '공장' || last === '지역') return last
+  const fromLine = parseTrailingFactoryRegionFromSapLine(line)
+  if (fromLine) return fromLine
   if (supplierFallback === '공장' || supplierFallback === '지역') return supplierFallback
   return null
 }
@@ -117,6 +136,13 @@ export function getSupplierOrderStatusFromSap(args: {
   if (mapped.includes('주문 완료')) return '주문 완료'
 
   return mapped[0] ?? fallbackOrderStatus
+}
+
+/** "12,345원" / "0원" 등에서 숫자만 추출 */
+function parseWonToNumber(s: string | undefined): number {
+  if (s == null || !String(s).trim()) return 0
+  const n = parseInt(String(s).replace(/[원,\s]/g, ''), 10)
+  return Number.isNaN(n) ? 0 : n
 }
 
 /** SAP 라인 앞부분에서 OTC/ETC 추출 (예: "OTC(제): ..." → "OTC", "ETC(바): ..." → "ETC") */
@@ -189,7 +215,10 @@ export type OrderDetailData = {
   vendorMessage: string
   adminMemos?: { id: string; authorName: string; content: string }[]
   /** 토글 우측 배송 예정일: 공장·지역별 시각 문구 (키: 공급사명). 없으면 상품 첫 행 expectedDeliveryDate 한 줄 */
-  supplierDeliverySlots?: Record<string, { factory?: string; region?: string }>
+  supplierDeliverySlots?: Record<
+    string,
+    { factory?: string; region?: string; /** 배지 없이 문구만 (한 줄) */ simple?: string }
+  >
 }
 
 type OrderDetailProduct = OrderDetailData['products'][number]
@@ -530,7 +559,7 @@ export default function OrderDetailModal({
             {(status === '주문 완료' || status === '결제완료') && !hidePartialCancelDaewongGroupOnly && (
               <button type="button" className={styles.btnPartialCancel} onClick={openPartialCancelForm}>부분취소</button>
             )}
-            {(status === '주문 완료' || status === '결제완료') && (
+            {(status === '주문 완료' || status === '결제완료') && !showOrderCancelRequestButton && (
               <button
                 type="button"
                 className={styles.btnOrderCancel}
@@ -722,10 +751,22 @@ export default function OrderDetailModal({
                 return sum + (Number.isNaN(v) ? 0 : v)
               }, 0)
               const orderAmount = detail.totalOrderAmount
-              const totalPayment = orderAmount - totalCostDiscount
+              const payRow = detail.paymentSummary?.[0]
+              const parsedPayment = parseWonToNumber(payRow?.paymentAmount)
+              const computedFinal = Math.max(0, orderAmount - totalCostDiscount)
+              /** 결제요약의 실결제액: paymentAmount 우선, 없으면 주문금액-비용할인 */
+              const resolvedFinal =
+                parsedPayment > 0 ? parsedPayment : computedFinal
+              /** PO1041161391 모의건: 총 결제·예치금 표기 0원 (할인금액 등은 그대로) */
+              const isPo1041161391 = detail.orderNo === 'PO1041161391'
+              const finalPayment = isPo1041161391 ? 0 : resolvedFinal
+              const displayDeposit = isPo1041161391 ? 0 : resolvedFinal
+              /** 예치금/쿠폰 등 비용할인 외 표기 할인 (paymentSummary 기준) */
+              const bundleDiscountAmt =
+                parseWonToNumber(payRow?.minusBalance) + parseWonToNumber(payRow?.supplierCoupon)
               return (
                 <div className={styles.paymentCallout}>
-                  주문금액({orderAmount.toLocaleString()}원) - 비용할인({totalCostDiscount.toLocaleString()}원) = 총결제금액 {totalPayment.toLocaleString()}원
+                  {`총 결제금액 ${finalPayment.toLocaleString()}원 (할인금액 ${bundleDiscountAmt.toLocaleString()}원) (주문금액:${orderAmount.toLocaleString()}원 - 비용할인:${totalCostDiscount.toLocaleString()}원 - 예치금:${displayDeposit.toLocaleString()}원)`}
                 </div>
               )
             })()}
@@ -869,7 +910,9 @@ export default function OrderDetailModal({
                     <div className={styles.supplierShippingCol}>
                       <span className={styles.supplierShippingLabel}>배송 예정일</span>
                       <div className={styles.supplierShippingBody}>
-                        {hasFactoryRegionSlots && deliverySlots ? (
+                        {deliverySlots?.simple != null ? (
+                          <span className={styles.supplierShippingSlotDate}>{deliverySlots.simple}</span>
+                        ) : hasFactoryRegionSlots && deliverySlots ? (
                           <div className={styles.supplierShippingSplit}>
                             {deliverySlots.factory != null && (
                               <div className={styles.supplierShippingSplitBlock}>
