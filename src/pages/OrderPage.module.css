@@ -313,6 +313,48 @@
   flex-shrink: 0;
 }
 
+.depositFilterGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.depositSegment {
+  display: inline-flex;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.depositSegmentBtn {
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #555;
+  background: #fff;
+  border: none;
+  border-right: 1px solid #e0e0e0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.depositSegmentBtn:last-child {
+  border-right: none;
+}
+
+.depositSegmentBtn:hover {
+  background: #f5f7fa;
+  color: #333;
+}
+
+.depositSegmentBtnActive {
+  background: #fff5f0;
+  color: #fd490e;
+  font-weight: 600;
+}
+
 .filterItem {
   display: flex;
   align-items: center;

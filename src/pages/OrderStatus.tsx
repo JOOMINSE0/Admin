@@ -955,7 +955,10 @@ export default function OrderStatus() {
   const [supplier, setSupplier] = useState(supplierOptions[0])
   const [searchType2, setSearchType2] = useState('약국명')
   const [searchKeyword2, setSearchKeyword2] = useState('')
-  const [deposit, setDeposit] = useState('전체')
+  type DepositScope = '전체' | '구매' | '제외'
+  type DepositIncludeMode = '포함' | '미포함'
+  const [depositScope, setDepositScope] = useState<DepositScope>('전체')
+  const [depositIncludeMode, setDepositIncludeMode] = useState<DepositIncludeMode>('포함')
   const [deliverySido, setDeliverySido] = useState(PLACEHOLDER_SIDO)
   const [deliveryGugun, setDeliveryGugun] = useState(PLACEHOLDER_GUGUN)
   const [deliveryEup, setDeliveryEup] = useState(PLACEHOLDER_EUP)
@@ -1001,7 +1004,8 @@ export default function OrderStatus() {
       setSupplier(supplierOptions[0])
       setSearchType2('약국명')
       setSearchKeyword2('')
-      setDeposit('전체')
+      setDepositScope('전체')
+      setDepositIncludeMode('포함')
       setPlusExclusiveY(false)
       setDeliverySido(PLACEHOLDER_SIDO)
       setDeliveryGugun(PLACEHOLDER_GUGUN)
@@ -1101,6 +1105,16 @@ export default function OrderStatus() {
   } else {
     // 기본(전체/주문완료/결제완료/준비중/주문취소 등): 주문일자 기준으로 본다
     filteredOrders = filteredOrders.filter(orderInRange)
+  }
+
+  const isDepositPayment = (row: OrderRow) => row.paymentMethod === '예치금'
+  if (depositScope === '제외') {
+    filteredOrders = filteredOrders.filter((o) => !isDepositPayment(o))
+  } else if (depositScope === '구매') {
+    filteredOrders =
+      depositIncludeMode === '포함'
+        ? filteredOrders.filter(isDepositPayment)
+        : filteredOrders.filter((o) => !isDepositPayment(o))
   }
 
   // 검색타입/검색어 필터
@@ -1290,7 +1304,19 @@ export default function OrderStatus() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [tab, activeStatus, shippedDateBasis, dateFrom, dateTo, deliverySido, deliveryGugun, deliveryEup, allStatusFilter])
+  }, [
+    tab,
+    activeStatus,
+    shippedDateBasis,
+    dateFrom,
+    dateTo,
+    deliverySido,
+    deliveryGugun,
+    deliveryEup,
+    allStatusFilter,
+    depositScope,
+    depositIncludeMode,
+  ])
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages >= 1) setCurrentPage(1)
@@ -1306,7 +1332,8 @@ export default function OrderStatus() {
     setSearchType2('약국명')
     setSearchKeyword2('')
     setSupplier(supplierOptions[0])
-    setDeposit('전체')
+    setDepositScope('전체')
+    setDepositIncludeMode('포함')
     setDeliverySido(PLACEHOLDER_SIDO)
     setDeliveryGugun(PLACEHOLDER_GUGUN)
     setDeliveryEup(PLACEHOLDER_EUP)
@@ -1540,12 +1567,35 @@ export default function OrderStatus() {
             </div>
             <div className={styles.filterItem}>
               <label className={styles.filterLabel}>예치금</label>
-              <select className={styles.select} value={deposit} onChange={(e) => setDeposit(e.target.value)}>
-                <option value="전체">전체</option>
-                <option value="구매(즉시할인 포함)">구매(즉시할인 포함)</option>
-                <option value="구매(즉시할인 미포함)">구매(즉시할인 미포함)</option>
-                <option value="제외">제외</option>
-              </select>
+              <div className={styles.depositFilterGroup}>
+                <select
+                  className={styles.select}
+                  value={depositScope}
+                  onChange={(e) => setDepositScope(e.target.value as DepositScope)}
+                >
+                  <option value="전체">전체</option>
+                  <option value="구매">구매</option>
+                  <option value="제외">제외</option>
+                </select>
+                {depositScope === '구매' && (
+                  <div className={styles.depositSegment} role="group" aria-label="예치금 포함 여부">
+                    <button
+                      type="button"
+                      className={`${styles.depositSegmentBtn} ${depositIncludeMode === '포함' ? styles.depositSegmentBtnActive : ''}`}
+                      onClick={() => setDepositIncludeMode('포함')}
+                    >
+                      예치금 포함
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.depositSegmentBtn} ${depositIncludeMode === '미포함' ? styles.depositSegmentBtnActive : ''}`}
+                      onClick={() => setDepositIncludeMode('미포함')}
+                    >
+                      예치금 미포함
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className={styles.filterItem}>
               <label className={styles.filterLabel}>플러스전용관</label>
