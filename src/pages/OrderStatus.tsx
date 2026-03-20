@@ -1578,20 +1578,20 @@ export default function OrderStatus() {
                   <option value="제외">제외</option>
                 </select>
                 {depositScope === '구매' && (
-                  <div className={styles.depositSegment} role="group" aria-label="예치금 포함 여부">
+                  <div className={styles.depositSegment} role="group" aria-label="즉시 할인 포함 여부">
                     <button
                       type="button"
                       className={`${styles.depositSegmentBtn} ${depositIncludeMode === '포함' ? styles.depositSegmentBtnActive : ''}`}
                       onClick={() => setDepositIncludeMode('포함')}
                     >
-                      예치금 포함
+                      즉시 할인 포함
                     </button>
                     <button
                       type="button"
                       className={`${styles.depositSegmentBtn} ${depositIncludeMode === '미포함' ? styles.depositSegmentBtnActive : ''}`}
                       onClick={() => setDepositIncludeMode('미포함')}
                     >
-                      예치금 미포함
+                      즉시할인 미포함
                     </button>
                   </div>
                 )}
@@ -1700,7 +1700,11 @@ export default function OrderStatus() {
               엑셀 다운로드
             </button>
             {activeStatus === 'payment_complete' && (
-              <button type="button" className={styles.btnShipPrepare}>
+              <button
+                type="button"
+                className={styles.btnShipPrepare}
+                onClick={() => window.alert('발송준비중처리가 되었습니다')}
+              >
                 발송 준비중 처리
               </button>
             )}
@@ -1710,7 +1714,11 @@ export default function OrderStatus() {
               </button>
             )}
             {activeStatus === 'shipped' && (
-              <button type="button" className={styles.btnShipPrepare}>
+              <button
+                type="button"
+                className={styles.btnShipPrepare}
+                onClick={() => window.alert('발송준비중처리가 되었습니다')}
+              >
                 발송 준비중 처리
               </button>
             )}

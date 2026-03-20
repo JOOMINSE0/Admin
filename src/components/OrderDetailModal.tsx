@@ -529,7 +529,6 @@ export default function OrderDetailModal({
       )
     ).size > 1
   const statusActionButton =
-    status === '주문 완료' ? { label: '결제완료', className: styles.btnShip } :
     status === '결제완료' ? { label: '발송 준비중 처리', className: styles.btnShip } :
     status === '발송 준비중' ? { label: '발송완료 처리', className: styles.btnShip } :
     status === '발송 완료' ? { label: '발송 준비중 처리', className: styles.btnShip } :
