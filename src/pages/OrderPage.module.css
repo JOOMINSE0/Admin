@@ -654,6 +654,20 @@
   white-space: nowrap;
 }
 
+.noResultsCell {
+  text-align: center;
+  vertical-align: middle;
+  color: #888;
+  padding: 30px 14px;
+  white-space: normal;
+}
+
+/* 테이블 기본 규칙(.table td { text-align: left; }) 덮기 */
+.table td.noResultsCell {
+  text-align: center;
+  vertical-align: middle;
+}
+
 .table tbody tr:hover {
   background: #f8f9fb;
 }
