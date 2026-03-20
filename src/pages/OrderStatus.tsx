@@ -106,12 +106,107 @@ const GUGUN_PLACEHOLDER_ONLY: Record<string, string[]> = {
 
 const REGION_TREE: Record<string, Record<string, string[]>> = {
   [PLACEHOLDER_SIDO]: GUGUN_PLACEHOLDER_ONLY,
-  강원: { ...GUGUN_PLACEHOLDER_ONLY },
-  경남: { ...GUGUN_PLACEHOLDER_ONLY },
-  경북: { ...GUGUN_PLACEHOLDER_ONLY },
-  광주: { ...GUGUN_PLACEHOLDER_ONLY },
-  대구: { ...GUGUN_PLACEHOLDER_ONLY },
-  대전: { ...GUGUN_PLACEHOLDER_ONLY },
+  강원: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    강릉시: [PLACEHOLDER_EUP],
+    고성군: [PLACEHOLDER_EUP],
+    동해시: [PLACEHOLDER_EUP],
+    삼척시: [PLACEHOLDER_EUP],
+    속초시: [PLACEHOLDER_EUP],
+    양구군: [PLACEHOLDER_EUP],
+    양양군: [PLACEHOLDER_EUP],
+    영월군: [PLACEHOLDER_EUP],
+    원주시: [PLACEHOLDER_EUP],
+    인제군: [PLACEHOLDER_EUP],
+    정선군: [PLACEHOLDER_EUP],
+    철원군: [PLACEHOLDER_EUP],
+    춘천시: [PLACEHOLDER_EUP],
+    태백시: [PLACEHOLDER_EUP],
+    평창군: [PLACEHOLDER_EUP],
+    홍천군: [PLACEHOLDER_EUP],
+    화천군: [PLACEHOLDER_EUP],
+    횡성군: [PLACEHOLDER_EUP],
+  },
+  경남: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    거창군: [PLACEHOLDER_EUP],
+    거제시: [PLACEHOLDER_EUP],
+    김해시: [PLACEHOLDER_EUP],
+    고성군: [PLACEHOLDER_EUP],
+    남해군: [PLACEHOLDER_EUP],
+    마산시: [PLACEHOLDER_EUP],
+    밀양시: [PLACEHOLDER_EUP],
+    사천시: [PLACEHOLDER_EUP],
+    산청군: [PLACEHOLDER_EUP],
+    양산시: [PLACEHOLDER_EUP],
+    의령군: [PLACEHOLDER_EUP],
+    진주시: [PLACEHOLDER_EUP],
+    진해시: [PLACEHOLDER_EUP],
+    창원시: [PLACEHOLDER_EUP],
+    '창원시 마산합포구': [PLACEHOLDER_EUP],
+    '창원시 마산회원구': [PLACEHOLDER_EUP],
+    '창원시 성산구': [PLACEHOLDER_EUP],
+    '창원시 의창구': [PLACEHOLDER_EUP],
+    '창원시 진해구': [PLACEHOLDER_EUP],
+    통영시: [PLACEHOLDER_EUP],
+    하동군: [PLACEHOLDER_EUP],
+    함안군: [PLACEHOLDER_EUP],
+    함양군: [PLACEHOLDER_EUP],
+    합천군: [PLACEHOLDER_EUP],
+  },
+  경북: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    경산시: [PLACEHOLDER_EUP],
+    경주시: [PLACEHOLDER_EUP],
+    고령군: [PLACEHOLDER_EUP],
+    구미시: [PLACEHOLDER_EUP],
+    군위군: [PLACEHOLDER_EUP],
+    김천시: [PLACEHOLDER_EUP],
+    문경시: [PLACEHOLDER_EUP],
+    봉화군: [PLACEHOLDER_EUP],
+    상주시: [PLACEHOLDER_EUP],
+    성주군: [PLACEHOLDER_EUP],
+    안동시: [PLACEHOLDER_EUP],
+    영덕군: [PLACEHOLDER_EUP],
+    영양군: [PLACEHOLDER_EUP],
+    영주시: [PLACEHOLDER_EUP],
+    영천시: [PLACEHOLDER_EUP],
+    예천군: [PLACEHOLDER_EUP],
+    울릉군: [PLACEHOLDER_EUP],
+    울진군: [PLACEHOLDER_EUP],
+    의성군: [PLACEHOLDER_EUP],
+    청도군: [PLACEHOLDER_EUP],
+    청송군: [PLACEHOLDER_EUP],
+    칠곡군: [PLACEHOLDER_EUP],
+    '포항시 북구': [PLACEHOLDER_EUP],
+    '포항시 남구': [PLACEHOLDER_EUP],
+  },
+  광주: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    광산구: [PLACEHOLDER_EUP],
+    남구: [PLACEHOLDER_EUP],
+    동구: [PLACEHOLDER_EUP],
+    북구: [PLACEHOLDER_EUP],
+    서구: [PLACEHOLDER_EUP],
+  },
+  대구: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    달서구: [PLACEHOLDER_EUP],
+    달성군: [PLACEHOLDER_EUP],
+    동구: [PLACEHOLDER_EUP],
+    북구: [PLACEHOLDER_EUP],
+    수성구: [PLACEHOLDER_EUP],
+    서구: [PLACEHOLDER_EUP],
+    중구: [PLACEHOLDER_EUP],
+  },
+  대전: {
+    [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
+    대덕구: [PLACEHOLDER_EUP],
+    동구: [PLACEHOLDER_EUP],
+    서구: [PLACEHOLDER_EUP],
+    유성구: [PLACEHOLDER_EUP],
+    중구: [PLACEHOLDER_EUP],
+  },
   세종: { ...GUGUN_PLACEHOLDER_ONLY },
   울산: { ...GUGUN_PLACEHOLDER_ONLY },
   인천: { ...GUGUN_PLACEHOLDER_ONLY },
@@ -122,20 +217,95 @@ const REGION_TREE: Record<string, Record<string, string[]>> = {
   충북: { ...GUGUN_PLACEHOLDER_ONLY },
   서울: {
     [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
-    강남구: [PLACEHOLDER_EUP, '역삼동', '논현동', '대치동'],
-    강북구: [PLACEHOLDER_EUP, '미아동', '수유동'],
-    송파구: [PLACEHOLDER_EUP, '잠실동', '문정동'],
+    강남구: [PLACEHOLDER_EUP],
+    강동구: [PLACEHOLDER_EUP],
+    강북구: [PLACEHOLDER_EUP],
+    강서구: [PLACEHOLDER_EUP],
+    관악구: [PLACEHOLDER_EUP],
+    광진구: [PLACEHOLDER_EUP],
+    구로구: [PLACEHOLDER_EUP],
+    금천구: [PLACEHOLDER_EUP],
+    노원구: [PLACEHOLDER_EUP],
+    도봉구: [PLACEHOLDER_EUP],
+    동대문구: [PLACEHOLDER_EUP],
+    동작구: [PLACEHOLDER_EUP],
+    마포구: [PLACEHOLDER_EUP],
+    서대문구: [PLACEHOLDER_EUP],
+    서초구: [PLACEHOLDER_EUP],
+    성동구: [PLACEHOLDER_EUP],
+    성북구: [PLACEHOLDER_EUP],
+    송파구: [PLACEHOLDER_EUP],
+    양천구: [PLACEHOLDER_EUP],
+    영등포구: [PLACEHOLDER_EUP],
+    용산구: [PLACEHOLDER_EUP],
+    은평구: [PLACEHOLDER_EUP],
+    종로구: [PLACEHOLDER_EUP],
+    중구: [PLACEHOLDER_EUP],
+    중랑구: [PLACEHOLDER_EUP],
   },
   경기: {
     [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
-    '수원시 영통구': [PLACEHOLDER_EUP, '영통동', '매탄동'],
-    '성남시 분당구': [PLACEHOLDER_EUP, '정자동', '야탑동'],
+    '가평군': [PLACEHOLDER_EUP],
     '고양시 덕양구': [PLACEHOLDER_EUP, '행신동', '화정동'],
+    '고양시 일산동구': [PLACEHOLDER_EUP],
+    '고양시 일산서구': [PLACEHOLDER_EUP],
+    '과천시': [PLACEHOLDER_EUP],
+    '광명시': [PLACEHOLDER_EUP],
+    '광주시': [PLACEHOLDER_EUP],
+    '구리시': [PLACEHOLDER_EUP],
+    '군포시': [PLACEHOLDER_EUP],
+    '김포시': [PLACEHOLDER_EUP],
+    '남양주시': [PLACEHOLDER_EUP],
+    '동두천시': [PLACEHOLDER_EUP],
+    '부천시 소사구': [PLACEHOLDER_EUP],
+    '부천시 오정구': [PLACEHOLDER_EUP],
+    '부천시 원미구': [PLACEHOLDER_EUP],
+    '성남시 분당구': [PLACEHOLDER_EUP, '정자동', '야탑동'],
+    '성남시 수정구': [PLACEHOLDER_EUP],
+    '성남시 중원구': [PLACEHOLDER_EUP],
+    '수원시 권선구': [PLACEHOLDER_EUP],
+    '수원시 영통구': [PLACEHOLDER_EUP, '영통동', '매탄동'],
+    '수원시 장안구': [PLACEHOLDER_EUP],
+    '수원시 팔달구': [PLACEHOLDER_EUP],
+    '안산시 단원구': [PLACEHOLDER_EUP],
+    '안산시 상록구': [PLACEHOLDER_EUP],
+    '안성시': [PLACEHOLDER_EUP],
+    '안양시 만안구': [PLACEHOLDER_EUP],
+    '안양시 동안구': [PLACEHOLDER_EUP],
+    '양주시': [PLACEHOLDER_EUP],
+    '양평군': [PLACEHOLDER_EUP],
+    '여주시': [PLACEHOLDER_EUP],
+    '연천군': [PLACEHOLDER_EUP],
+    '오산시': [PLACEHOLDER_EUP],
+    '용인시 기흥구': [PLACEHOLDER_EUP],
+    '용인시 수지구': [PLACEHOLDER_EUP],
+    '용인시 처인구': [PLACEHOLDER_EUP],
+    '의왕시': [PLACEHOLDER_EUP],
+    '의정부시': [PLACEHOLDER_EUP],
+    '이천시': [PLACEHOLDER_EUP],
+    '파주시': [PLACEHOLDER_EUP],
+    '평택시': [PLACEHOLDER_EUP],
+    '포천시': [PLACEHOLDER_EUP],
+    '하남시': [PLACEHOLDER_EUP],
+    '화성시': [PLACEHOLDER_EUP],
   },
   부산: {
     [PLACEHOLDER_GUGUN]: [PLACEHOLDER_EUP],
-    해운대구: [PLACEHOLDER_EUP, '우동', '재송동'],
-    부산진구: [PLACEHOLDER_EUP, '부전동', '연지동'],
+    해운대구: [PLACEHOLDER_EUP],
+    기장군: [PLACEHOLDER_EUP],
+    금정구: [PLACEHOLDER_EUP],
+    남구: [PLACEHOLDER_EUP],
+    동래구: [PLACEHOLDER_EUP],
+    동구: [PLACEHOLDER_EUP],
+    부산진구: [PLACEHOLDER_EUP],
+    북구: [PLACEHOLDER_EUP],
+    사상구: [PLACEHOLDER_EUP],
+    사하구: [PLACEHOLDER_EUP],
+    서구: [PLACEHOLDER_EUP],
+    수영구: [PLACEHOLDER_EUP],
+    연제구: [PLACEHOLDER_EUP],
+    영도구: [PLACEHOLDER_EUP],
+    중구: [PLACEHOLDER_EUP],
   },
 }
 
@@ -144,7 +314,7 @@ const SIDO_OPTIONS = [PLACEHOLDER_SIDO, ...PREPARING_SIDO_ORDER]
 type StatusKey = 'all' | 'payment_complete' | 'preparing' | 'shipped' | 'order_cancel'
 const statusSteps: { key: StatusKey; label: string; icon: string; color: string }[] = [
   { key: 'all', label: '전체', icon: '', color: '#607d8b' },
-  { key: 'payment_complete', label: '결제완료', icon: '', color: '#4caf50' },
+  { key: 'payment_complete', label: '결제 완료', icon: '', color: '#4caf50' },
   { key: 'preparing', label: '발송 준비중', icon: '', color: '#ff9800' },
   { key: 'shipped', label: '발송 완료', icon: '', color: '#e91e63' },
   { key: 'order_cancel', label: '주문 취소', icon: '', color: '#9e9e9e' },
@@ -967,8 +1137,11 @@ export default function OrderStatus() {
   /** 전체 현황에서만: 주문 상태값 필터 ('')=전체 */
   const [allStatusFilter, setAllStatusFilter] = useState('')
 
+  const isIsoDateInput = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
+
   const dateRangeError = (() => {
     if (!dateFrom || !dateTo) return '조회 기간을 올바르게 입력해주세요.'
+    if (!isIsoDateInput(dateFrom) || !isIsoDateInput(dateTo)) return '조회 기간을 올바르게 입력해주세요.'
     if (dateFrom > dateTo) return '시작일은 종료일보다 늦을 수 없습니다.'
     return ''
   })()
@@ -1186,6 +1359,74 @@ export default function OrderStatus() {
   const displayedOrders = sortOrdersByLatest(
     tab === 'bundle' ? bundleOrders(filteredOrders) : filteredOrders
   )
+
+  const handleShipPrepare = () => {
+    const selectedRows = displayedOrders.filter((o) => selectedIds.has(o.id))
+    const selectedCount = selectedRows.length
+
+    if (selectedCount === 0) {
+      window.alert('처리할 주문을 선택해주세요.')
+      return
+    }
+
+    const targetStatusLabel = activeStatus === 'payment_complete' ? '결제 완료' : '발송 완료'
+    const shouldProceed = window.confirm(
+      `선택 건수: ${selectedCount}건\n처리 대상 상태: ${targetStatusLabel}\n\n처리 후 현재 탭에서 목록이 제외됩니다.\n계속 진행할까요?`
+    )
+
+    if (!shouldProceed) return
+
+    const nextOrderStatus = STATUS_KEY_TO_ORDER_STATUS.preparing // '발송 준비중'
+    setOrderStatusOverrides((prev) => {
+      const next = { ...prev }
+      selectedRows.forEach((r) => {
+        next[r.orderNo] = nextOrderStatus
+      })
+      return next
+    })
+    setSelectedIds(new Set())
+    window.alert('발송 준비중 처리가 완료되었습니다.')
+  }
+
+  const handleShipComplete = () => {
+    const selectedRows = displayedOrders.filter((o) => selectedIds.has(o.id))
+    const selectedCount = selectedRows.length
+
+    if (selectedCount === 0) {
+      window.alert('처리할 주문을 선택해주세요.')
+      return
+    }
+
+    const targetStatusLabel = '발송 준비중'
+    const shouldProceed = window.confirm(
+      `선택 건수: ${selectedCount}건\n처리 대상 상태: ${targetStatusLabel}\n\n처리 후 현재 탭에서 목록이 제외됩니다.\n계속 진행할까요?`
+    )
+    if (!shouldProceed) return
+
+    const nextOrderStatus = STATUS_KEY_TO_ORDER_STATUS.shipped // '발송 완료'
+    setOrderStatusOverrides((prev) => {
+      const next = { ...prev }
+      selectedRows.forEach((r) => {
+        next[r.orderNo] = nextOrderStatus
+      })
+      return next
+    })
+
+    setSelectedIds(new Set())
+    window.alert('발송 완료 처리가 완료되었습니다.')
+  }
+
+  const handleShipPrepareByOrderNo = (orderNo: string) => {
+    setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: STATUS_KEY_TO_ORDER_STATUS.preparing }))
+    setSelectedIds(new Set())
+    window.alert('발송 준비중 처리가 완료되었습니다.')
+  }
+
+  const handleShipCompleteByOrderNo = (orderNo: string) => {
+    setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: STATUS_KEY_TO_ORDER_STATUS.shipped }))
+    setSelectedIds(new Set())
+    window.alert('발송 완료 처리가 완료되었습니다.')
+  }
 
   const matchesSearch = (row: OrderRow, k: string): boolean => {
     const rAny = row as any
@@ -1479,6 +1720,10 @@ export default function OrderStatus() {
             value={dateFrom}
             onChange={(e) => {
               const v = e.target.value
+              if (v && !isIsoDateInput(v)) {
+                window.alert('조회 기간을 올바르게 입력해주세요.')
+                return
+              }
               setDateFrom(v)
               setDateRangeByStatus((prev) => ({
                 ...prev,
@@ -1493,6 +1738,10 @@ export default function OrderStatus() {
             value={dateTo}
             onChange={(e) => {
               const v = e.target.value
+              if (v && !isIsoDateInput(v)) {
+                window.alert('조회 기간을 올바르게 입력해주세요.')
+                return
+              }
               setDateTo(v)
               setDateRangeByStatus((prev) => ({
                 ...prev,
@@ -1598,7 +1847,7 @@ export default function OrderStatus() {
               </div>
             </div>
             <div className={styles.filterItem}>
-              <label className={styles.filterLabel}>플러스전용관</label>
+              <label className={styles.filterLabel}>더샵 플러스</label>
               <label className={styles.checkboxLabel}>
                 <input
                   type="checkbox"
@@ -1703,13 +1952,17 @@ export default function OrderStatus() {
               <button
                 type="button"
                 className={styles.btnShipPrepare}
-                onClick={() => window.alert('발송준비중처리가 되었습니다')}
+                onClick={handleShipPrepare}
               >
                 발송 준비중 처리
               </button>
             )}
             {activeStatus === 'preparing' && (
-              <button type="button" className={styles.btnShipComplete}>
+              <button
+                type="button"
+                className={styles.btnShipComplete}
+                onClick={handleShipComplete}
+              >
                 발송완료 처리
               </button>
             )}
@@ -1717,7 +1970,7 @@ export default function OrderStatus() {
               <button
                 type="button"
                 className={styles.btnShipPrepare}
-                onClick={() => window.alert('발송준비중처리가 되었습니다')}
+                onClick={handleShipPrepare}
               >
                 발송 준비중 처리
               </button>
@@ -1758,72 +2011,62 @@ export default function OrderStatus() {
               </tr>
             </thead>
             <tbody>
-              {orderTableLines.map((line, tableLineIdx) => {
-                const row = line.baseRow
-                const rs = line.rowspan
-                const groupStart = line.lineIndex === 0 && tableLineIdx > 0
-                return (
-                  <tr
-                    key={line.key}
-                    className={groupStart ? styles.trOrderGroupStart : undefined}
-                  >
-                    {line.lineIndex === 0 && (
-                      <td className={styles.colSticky1} rowSpan={rs}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(row.id)}
-                          onChange={() => toggleSelectOne(row.id)}
-                        />
-                      </td>
-                    )}
-                    {line.lineIndex === 0 && (
-                      <td className={styles.colSticky2} rowSpan={rs}>
-                        <button
-                          type="button"
-                          className={styles.orderNoLink}
-                          onClick={() => setDetailOpen(getOrderDetail(row))}
-                        >
-                          {row.orderNo}
-                        </button>
-                      </td>
-                    )}
-                    <td className={styles.colSticky3}>{line.supplierStatus}</td>
-                    <td>{line.supplierDisplay}</td>
-                    <td>{line.productSummary}</td>
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.pharmacyName}</td>
-                    )}
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.customerName}</td>
-                    )}
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.memberPaymentMethod}</td>
-                    )}
-                    <td>{line.supplierOrderAmount.toLocaleString()}</td>
-                    <td>{line.supplierSalesAmount.toLocaleString()}</td>
-                    <td>{line.supplierSupply.toLocaleString()}</td>
-                    <td>{line.supplierTax.toLocaleString()}</td>
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.paymentAmount.toLocaleString()}</td>
-                    )}
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.finalAmount.toLocaleString()}</td>
-                    )}
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.paymentMethod}</td>
-                    )}
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.orderDateTime}</td>
-                    )}
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.memo}</td>
-                    )}
-                    {line.lineIndex === 0 && (
-                      <td rowSpan={rs}>{row.memberId}</td>
-                    )}
-                  </tr>
-                )
-              })}
+              {orderTableLines.length > 0 ? (
+                orderTableLines.map((line, tableLineIdx) => {
+                  const row = line.baseRow
+                  const rs = line.rowspan
+                  const groupStart = line.lineIndex === 0 && tableLineIdx > 0
+                  return (
+                    <tr
+                      key={line.key}
+                      className={groupStart ? styles.trOrderGroupStart : undefined}
+                    >
+                      {line.lineIndex === 0 && (
+                        <td className={styles.colSticky1} rowSpan={rs}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(row.id)}
+                            onChange={() => toggleSelectOne(row.id)}
+                          />
+                        </td>
+                      )}
+                      {line.lineIndex === 0 && (
+                        <td className={styles.colSticky2} rowSpan={rs}>
+                          <button
+                            type="button"
+                            className={styles.orderNoLink}
+                            onClick={() => setDetailOpen(getOrderDetail(row))}
+                          >
+                            {row.orderNo}
+                          </button>
+                        </td>
+                      )}
+                      <td className={styles.colSticky3}>{line.supplierStatus}</td>
+                      <td>{line.supplierDisplay}</td>
+                      <td>{line.productSummary}</td>
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.pharmacyName}</td>}
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.customerName}</td>}
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.memberPaymentMethod}</td>}
+                      <td>{line.supplierOrderAmount.toLocaleString()}</td>
+                      <td>{line.supplierSalesAmount.toLocaleString()}</td>
+                      <td>{line.supplierSupply.toLocaleString()}</td>
+                      <td>{line.supplierTax.toLocaleString()}</td>
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.paymentAmount.toLocaleString()}</td>}
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.finalAmount.toLocaleString()}</td>}
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.paymentMethod}</td>}
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.orderDateTime}</td>}
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.memo}</td>}
+                      {line.lineIndex === 0 && <td rowSpan={rs}>{row.memberId}</td>}
+                    </tr>
+                  )
+                })
+              ) : (
+                <tr>
+                  <td colSpan={18} className={styles.noResultsCell}>
+                    검색된 조건에 맞는 주문내역이 존재하지 않습니다.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -1877,6 +2120,8 @@ export default function OrderStatus() {
         onOrderCancelRequest={(orderNo) => {
           window.alert(`주문취소 요청이 접수되었습니다. (${orderNo})`)
         }}
+        onShipPrepare={handleShipPrepareByOrderNo}
+        onShipComplete={handleShipCompleteByOrderNo}
       />
     </div>
   )

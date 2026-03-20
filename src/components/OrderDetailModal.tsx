@@ -281,6 +281,10 @@ type OrderDetailModalProps = {
   onOrderCancel?: (orderNo: string) => void
   /** SAP에 납품번호가 있을 때 노출되는 주문취소요청 버튼 콜백 */
   onOrderCancelRequest?: (orderNo: string) => void
+  /** 발송 준비중 처리 버튼 콜백 (주문번호 전달) */
+  onShipPrepare?: (orderNo: string) => void
+  /** 발송완료 처리 버튼 콜백 (주문번호 전달) */
+  onShipComplete?: (orderNo: string) => void
 }
 
 type PartialCancelRecord = {
@@ -307,6 +311,8 @@ export default function OrderDetailModal({
   currentUserName = '관리자1',
   onOrderCancel,
   onOrderCancelRequest,
+  onShipPrepare,
+  onShipComplete,
 }: OrderDetailModalProps) {
   const [openSuppliers, setOpenSuppliers] = useState<Set<string>>(new Set())
   const [memos, setMemos] = useState<{ id: string; authorName: string; content: string }[]>([])
@@ -590,7 +596,36 @@ export default function OrderDetailModal({
               </button>
             )}
             {statusActionButton && (
-              <button type="button" className={statusActionButton.className}>
+              <button
+                type="button"
+                className={statusActionButton.className}
+                onClick={() => {
+                  if (!detail?.orderNo) return
+
+                  // "발송 준비중 처리" 버튼 확인 팝업
+                  if (status === '결제완료' || status === '발송 완료') {
+                    const targetStatusLabel = status === '결제완료' ? '결제 완료' : '발송 완료'
+                    const shouldProceed = window.confirm(
+                      `선택 건수: 1건\n처리 대상 상태: ${targetStatusLabel}\n\n처리 후 현재 탭에서 목록이 제외됩니다.\n계속 진행할까요?`
+                    )
+                    if (!shouldProceed) return
+
+                    onShipPrepare?.(detail.orderNo)
+                    onClose()
+                  }
+
+                  // "발송완료 처리" 버튼 확인 팝업
+                  if (status === '발송 준비중') {
+                    const shouldProceed = window.confirm(
+                      `선택 건수: 1건\n처리 대상 상태: 발송 준비중\n\n처리 후 현재 탭에서 목록이 제외됩니다.\n계속 진행할까요?`
+                    )
+                    if (!shouldProceed) return
+
+                    onShipComplete?.(detail.orderNo)
+                    onClose()
+                  }
+                }}
+              >
                 {statusActionButton.label}
               </button>
             )}
