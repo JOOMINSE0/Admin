@@ -344,7 +344,7 @@ const SHIPPED_ORDER_NO = 'P01041161391'
 // JSON 기반 다중 공급사 주문 (상세 팝업 데이터)
 const MULTI_SUPPLIER_ORDER_NO = 'PO1041161391'
 /** 상세·목록 주문일시 (API 연동 시 동일 JSON의 orderDate) */
-const MULTI_SUPPLIER_ORDER_DATE = '2026-03-19 13:59:17'
+const MULTI_SUPPLIER_ORDER_DATE = '2026-03-23 13:59:17'
 
 /** PO1041161391 SAP (제=대웅제약, 바=대웅바이오). 라인 끝 (공장)/(지역)은 상세 모달에서 배지로 표시 */
 const PO1041161391_SAP_BY_SUPPLIER: Record<string, string> = {
@@ -523,8 +523,15 @@ const mockOrders = [
   },
 ]
 
-function formatDate(d: Date) {
-  return d.toISOString().slice(0, 10)
+/** 한국(Asia/Seoul) 기준 달력 날짜 YYYY-MM-DD — toISOString(UTC) 사용 시 KST에서 하루 밀림 방지 */
+function formatDate(d: Date): string {
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })
+}
+
+/** 서울 기준 YYYY-MM-DD 문자열에 일수 가감 */
+function addCalendarDaysSeoul(isoYmd: string, deltaDays: number): string {
+  const [y, m, d] = isoYmd.split('-').map(Number)
+  return formatDate(new Date(Date.UTC(y, m - 1, d + deltaDays)))
 }
 
 type OrderRow = (typeof mockOrders)[number]
@@ -1086,7 +1093,7 @@ function downloadOrderExcel(orders: OrderRow[]) {
   const ws = XLSX.utils.aoa_to_sheet(data)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, '주문내역')
-  const fileName = `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`
+  const fileName = `주문내역_${formatDate(new Date())}.xlsx`
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
   const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)
@@ -1615,22 +1622,20 @@ export default function OrderStatus() {
   const summaryCancelAmount = Math.max(summaryOrderAmount - summaryFinalAmount, 0)
 
   const setQuickDate = (type: 'today' | '1day' | '1week' | '1month') => {
-    const today = new Date()
-    const toStr = formatDate(today)
-    let from: Date
+    const toStr = formatDate(new Date())
+    let fromStr: string
     if (type === 'today') {
-      from = today
+      fromStr = toStr
     } else if (type === '1day') {
-      from = new Date(today)
-      from.setDate(from.getDate() - 1)
+      fromStr = addCalendarDaysSeoul(toStr, -1)
     } else if (type === '1week') {
-      from = new Date(today)
-      from.setDate(from.getDate() - 6)
+      fromStr = addCalendarDaysSeoul(toStr, -6)
     } else {
-      from = new Date(today)
-      from.setMonth(from.getMonth() - 1)
+      const [y, m, d] = toStr.split('-').map(Number)
+      const from = new Date(Date.UTC(y, m - 1, d))
+      from.setUTCMonth(from.getUTCMonth() - 1)
+      fromStr = formatDate(from)
     }
-    const fromStr = formatDate(from)
     setDateFrom(fromStr)
     setDateTo(toStr)
     setDateRangeByStatus((prev) => ({
