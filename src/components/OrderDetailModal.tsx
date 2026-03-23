@@ -285,6 +285,8 @@ type OrderDetailModalProps = {
   onShipPrepare?: (orderNo: string) => void
   /** 발송완료 처리 버튼 콜백 (주문번호 전달) */
   onShipComplete?: (orderNo: string) => void
+  /** 부분취소 저장 확정 시 (관리자 메모 자동 기록 등) */
+  onPartialCancelSaved?: (orderNo: string) => void
 }
 
 type PartialCancelRecord = {
@@ -313,6 +315,7 @@ export default function OrderDetailModal({
   onOrderCancelRequest,
   onShipPrepare,
   onShipComplete,
+  onPartialCancelSaved,
 }: OrderDetailModalProps) {
   const [openSuppliers, setOpenSuppliers] = useState<Set<string>>(new Set())
   const [memos, setMemos] = useState<{ id: string; authorName: string; content: string }[]>([])
@@ -515,6 +518,8 @@ export default function OrderDetailModal({
     setPartialCancelConfirmOpen(false)
     setPartialCancelRecords((prev) => [...prev, ...toAdd])
     closePartialCancelForm()
+    const orderNo = detail?.orderNo
+    if (orderNo) onPartialCancelSaved?.(orderNo)
   }
 
   if (!detail) return null

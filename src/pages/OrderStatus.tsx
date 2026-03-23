@@ -328,6 +328,35 @@ const STATUS_KEY_TO_ORDER_STATUS: Record<Exclude<StatusKey, 'all'>, string> = {
   order_cancel: '주문 취소',
 }
 
+/** 관리자 메모 자동 기록 시 표시되는 운영자명 */
+const ADMIN_MEMO_AUTHOR = '관리자1'
+
+function formatDateTimeSeoul(d: Date = new Date()): string {
+  return d.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).replace('T', ' ')
+}
+
+type AdminMemoAppend = NonNullable<OrderDetailData['adminMemos']>
+
+function mergeDetailAdminMemos(
+  detail: OrderDetailData,
+  extraByOrderNo: Record<string, AdminMemoAppend>
+): OrderDetailData {
+  const extra = extraByOrderNo[detail.orderNo]
+  if (!extra?.length) return detail
+  return {
+    ...detail,
+    adminMemos: [...(detail.adminMemos ?? []), ...extra],
+  }
+}
+
+function createAutoAdminMemoEntry(authorName: string, content: string) {
+  return {
+    id: `auto-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    authorName,
+    content,
+  }
+}
+
 /** 전체 현황에서만 사용: 주문 상태값 드롭다운 옵션 (value는 orderStatus 매칭용, ''=전체) */
 const ALL_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: '전체' },
@@ -1123,6 +1152,22 @@ export default function OrderStatus() {
   const [plusExclusiveY, setPlusExclusiveY] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailOpen, setDetailOpen] = useState<OrderDetailData | null>(null)
+  const [adminMemoAppendByOrderNo, setAdminMemoAppendByOrderNo] = useState<
+    Record<string, AdminMemoAppend>
+  >({})
+
+  const appendAdminMemo = (orderNo: string, authorName: string, content: string) => {
+    const entry = createAutoAdminMemoEntry(authorName, content)
+    setAdminMemoAppendByOrderNo((prev) => ({
+      ...prev,
+      [orderNo]: [...(prev[orderNo] ?? []), entry],
+    }))
+  }
+
+  const displayedDetail = useMemo(
+    () => (detailOpen ? mergeDetailAdminMemos(detailOpen, adminMemoAppendByOrderNo) : null),
+    [detailOpen, adminMemoAppendByOrderNo]
+  )
   const [currentPage, setCurrentPage] = useState(1)
   /** 주문번호별 상태 오버라이드 (주문 취소 버튼 등으로 변경된 상태) */
   const [orderStatusOverrides, setOrderStatusOverrides] = useState<Record<string, string>>({})
@@ -1384,6 +1429,14 @@ export default function OrderStatus() {
     if (!shouldProceed) return
 
     const nextOrderStatus = STATUS_KEY_TO_ORDER_STATUS.preparing // '발송 준비중'
+    const ts = formatDateTimeSeoul()
+    selectedRows.forEach((r) => {
+      appendAdminMemo(
+        r.orderNo,
+        ADMIN_MEMO_AUTHOR,
+        `[${r.orderStatus}] → [${nextOrderStatus}] 변경 / ${ts}`
+      )
+    })
     setOrderStatusOverrides((prev) => {
       const next = { ...prev }
       selectedRows.forEach((r) => {
@@ -1411,6 +1464,14 @@ export default function OrderStatus() {
     if (!shouldProceed) return
 
     const nextOrderStatus = STATUS_KEY_TO_ORDER_STATUS.shipped // '발송 완료'
+    const ts = formatDateTimeSeoul()
+    selectedRows.forEach((r) => {
+      appendAdminMemo(
+        r.orderNo,
+        ADMIN_MEMO_AUTHOR,
+        `[${r.orderStatus}] → [${nextOrderStatus}] 변경 / ${ts}`
+      )
+    })
     setOrderStatusOverrides((prev) => {
       const next = { ...prev }
       selectedRows.forEach((r) => {
@@ -1424,12 +1485,28 @@ export default function OrderStatus() {
   }
 
   const handleShipPrepareByOrderNo = (orderNo: string) => {
+    const base = mockOrders.find((o) => o.orderNo === orderNo)
+    const from =
+      orderStatusOverrides[orderNo] ?? base?.orderStatus ?? STATUS_KEY_TO_ORDER_STATUS.payment_complete
+    appendAdminMemo(
+      orderNo,
+      ADMIN_MEMO_AUTHOR,
+      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.preparing}] 변경 / ${formatDateTimeSeoul()}`
+    )
     setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: STATUS_KEY_TO_ORDER_STATUS.preparing }))
     setSelectedIds(new Set())
     window.alert('발송 준비중 처리가 완료되었습니다.')
   }
 
   const handleShipCompleteByOrderNo = (orderNo: string) => {
+    const base = mockOrders.find((o) => o.orderNo === orderNo)
+    const from =
+      orderStatusOverrides[orderNo] ?? base?.orderStatus ?? STATUS_KEY_TO_ORDER_STATUS.preparing
+    appendAdminMemo(
+      orderNo,
+      ADMIN_MEMO_AUTHOR,
+      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.shipped}] 변경 / ${formatDateTimeSeoul()}`
+    )
     setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: STATUS_KEY_TO_ORDER_STATUS.shipped }))
     setSelectedIds(new Set())
     window.alert('발송 완료 처리가 완료되었습니다.')
@@ -2115,18 +2192,31 @@ export default function OrderStatus() {
       </div>
 
       <OrderDetailModal
-        detail={detailOpen}
+        detail={displayedDetail}
         onClose={() => setDetailOpen(null)}
-        currentUserName="관리자1"
+        currentUserName={ADMIN_MEMO_AUTHOR}
         onOrderCancel={(orderNo) => {
+          appendAdminMemo(
+            orderNo,
+            ADMIN_MEMO_AUTHOR,
+            `[주문 취소] 진행 / ${formatDateTimeSeoul()}`
+          )
           setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: '주문 취소' }))
           setDetailOpen(null)
         }}
         onOrderCancelRequest={(orderNo) => {
+          appendAdminMemo(
+            orderNo,
+            ADMIN_MEMO_AUTHOR,
+            `[주문취소요청] 진행 / ${formatDateTimeSeoul()}`
+          )
           window.alert(`주문취소 요청이 접수되었습니다. (${orderNo})`)
         }}
         onShipPrepare={handleShipPrepareByOrderNo}
         onShipComplete={handleShipCompleteByOrderNo}
+        onPartialCancelSaved={(orderNo) => {
+          appendAdminMemo(orderNo, ADMIN_MEMO_AUTHOR, `[부분 취소] 진행 / ${formatDateTimeSeoul()}`)
+        }}
       />
     </div>
   )
