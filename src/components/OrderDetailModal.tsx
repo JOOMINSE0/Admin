@@ -213,7 +213,7 @@ export type OrderDetailData = {
     address: string
   }
   vendorMessage: string
-  adminMemos?: { id: string; authorName: string; content: string }[]
+  adminMemos?: { id: string; authorName: string; content: string; createdAt?: string }[]
   /** 토글 우측 배송 예정일: 공장·지역별 시각 문구 (키: 공급사명). 없으면 상품 첫 행 expectedDeliveryDate 한 줄 */
   supplierDeliverySlots?: Record<
     string,
@@ -307,6 +307,12 @@ type PartialCancelRowInput = { accumType: string; reason: string; cancelQty: str
 const ACCUM_TYPE_OPTIONS = ['선택', '부분취소', '판매가조정', '낱알반품', '배송비'] as const
 const PARTIAL_CANCEL_REASON_OPTIONS = ['선택', '재고부족', '고객요청'] as const
 
+function formatMemoDateTimeSeoul(d: Date = new Date()): string {
+  return d.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).replace('T', ' ')
+}
+
+type MemoRow = { id: string; authorName: string; content: string; createdAt?: string }
+
 export default function OrderDetailModal({
   detail,
   onClose,
@@ -318,10 +324,11 @@ export default function OrderDetailModal({
   onPartialCancelSaved,
 }: OrderDetailModalProps) {
   const [openSuppliers, setOpenSuppliers] = useState<Set<string>>(new Set())
-  const [memos, setMemos] = useState<{ id: string; authorName: string; content: string }[]>([])
+  const [memos, setMemos] = useState<MemoRow[]>([])
   const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
   const [newMemoContent, setNewMemoContent] = useState('')
+  const [newMemoInputError, setNewMemoInputError] = useState(false)
   const [showPartialCancelForm, setShowPartialCancelForm] = useState(false)
   const [partialCancelRecords, setPartialCancelRecords] = useState<PartialCancelRecord[]>([])
   const [partialCancelInputs, setPartialCancelInputs] = useState<Record<number, PartialCancelRowInput>>({})
@@ -335,6 +342,7 @@ export default function OrderDetailModal({
     setMemos(detail?.adminMemos ?? [])
     setEditingMemoId(null)
     setNewMemoContent('')
+    setNewMemoInputError(false)
     setOpenSuppliers(new Set())
     setShowPartialCancelForm(false)
     setPartialCancelRecords([])
@@ -380,10 +388,20 @@ export default function OrderDetailModal({
 
   const handleAddMemo = () => {
     const content = newMemoContent.trim()
-    if (!content) return
+    if (!content) {
+      setNewMemoInputError(true)
+      window.alert('필수값입니다. 입력해주세요.')
+      return
+    }
+    setNewMemoInputError(false)
     setMemos((prev) => [
       ...prev,
-      { id: String(Date.now()), authorName: currentUserName, content },
+      {
+        id: String(Date.now()),
+        authorName: currentUserName,
+        content,
+        createdAt: formatMemoDateTimeSeoul(),
+      },
     ])
     setNewMemoContent('')
   }
@@ -1133,7 +1151,14 @@ export default function OrderDetailModal({
                 {memos.map((memo) => (
                   <li key={memo.id} className={styles.memoItem}>
                     <div className={styles.memoMeta}>
-                      <span className={styles.memoAuthor}>{memo.authorName}</span>
+                      <div className={styles.memoMetaLeft}>
+                        <span className={styles.memoAuthor}>{memo.authorName}</span>
+                        {memo.createdAt ? (
+                          <span className={styles.memoRegisteredAt} title="등록일시">
+                            {memo.createdAt}
+                          </span>
+                        ) : null}
+                      </div>
                       {memo.authorName === currentUserName && editingMemoId !== memo.id && (
                         <span className={styles.memoActions}>
                           <button type="button" className={styles.btnMemoEdit} onClick={() => handleEditStart(memo.id, memo.content)}>수정</button>
@@ -1162,10 +1187,13 @@ export default function OrderDetailModal({
               </ul>
               <div className={styles.memoAddWrap}>
                 <textarea
-                  className={styles.memoTextarea}
+                  className={`${styles.memoTextarea} ${newMemoInputError ? styles.memoTextareaError : ''}`}
                   placeholder="메모를 입력하세요"
                   value={newMemoContent}
-                  onChange={(e) => setNewMemoContent(e.target.value)}
+                  onChange={(e) => {
+                    setNewMemoContent(e.target.value)
+                    if (newMemoInputError) setNewMemoInputError(false)
+                  }}
                   rows={3}
                 />
                 <button type="button" className={styles.btnMemoAdd} onClick={handleAddMemo}>메모 등록</button>

@@ -354,6 +354,7 @@ function createAutoAdminMemoEntry(authorName: string, content: string) {
     id: `auto-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     authorName,
     content,
+    createdAt: formatDateTimeSeoul(),
   }
 }
 
