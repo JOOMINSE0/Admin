@@ -487,15 +487,13 @@ export default function OrderDetailModal({
 
       const cancelNum = parseInt(cancelQtyStr, 10)
       if (Number.isNaN(cancelNum) || cancelNum < 1) {
-        errors.push(`「${p.productSpec ?? '상품'}」: 취소 수량은 1 이상의 숫자로 입력해 주세요.`)
+        errors.push(`「${p.productSpec ?? '상품'}」: 취소 수량을 확인해주세요.`)
         return
       }
 
       const maxQty = parseOrderQtyMax(p.orderQty)
       if (maxQty > 0 && cancelNum > maxQty) {
-        errors.push(
-          `「${p.productSpec ?? '상품'}」: 취소 수량은 기존 주문 수량(${p.orderQty})을 넘을 수 없습니다.`
-        )
+        errors.push(`「${p.productSpec ?? '상품'}」: 취소 가능 수량을 초과했습니다.`)
         return
       }
 
