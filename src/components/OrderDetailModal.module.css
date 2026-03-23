@@ -1094,15 +1094,31 @@
 
 .memoMeta {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 6px;
+}
+
+.memoMetaLeft {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
 }
 
 .memoAuthor {
   font-size: 13px;
   font-weight: 600;
   color: #333;
+}
+
+.memoRegisteredAt {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  font-variant-numeric: tabular-nums;
 }
 
 .memoActions {
@@ -1166,6 +1182,16 @@
 .memoTextarea:focus {
   outline: none;
   border-color: #1976d2;
+}
+
+.memoTextareaError {
+  border: 2px solid #c62828 !important;
+  box-shadow: 0 0 0 1px rgba(198, 40, 40, 0.2);
+}
+
+.memoTextareaError:focus {
+  border-color: #c62828 !important;
+  box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.15);
 }
 
 .memoEditActions {
