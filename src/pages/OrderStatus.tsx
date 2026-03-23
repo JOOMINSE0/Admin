@@ -1096,7 +1096,7 @@ const EXCEL_HEADERS = [
   '결제방식', '주문일시', '주문상태', '메모', '회원ID',
 ]
 
-function downloadOrderExcel(orders: OrderRow[]) {
+function downloadOrderExcel(orders: OrderRow[], sheetName: string) {
   const rows = orders.flatMap((row) => {
     const lines = buildOrderTableLines(row)
     return lines.map((line) => [
@@ -1122,8 +1122,8 @@ function downloadOrderExcel(orders: OrderRow[]) {
   const data = [EXCEL_HEADERS, ...rows]
   const ws = XLSX.utils.aoa_to_sheet(data)
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, '주문내역')
-  const fileName = `주문내역_${formatDate(new Date())}.xlsx`
+  XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  const fileName = `${sheetName}_${formatDate(new Date())}.xlsx`
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
   const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)
@@ -1699,6 +1699,17 @@ export default function OrderStatus() {
   // 최종결제금액 = 주문금액 - 취소금액(부분취소 포함)
   const summaryCancelAmount = Math.max(summaryOrderAmount - summaryFinalAmount, 0)
 
+  const tableTitle =
+    activeStatus === 'all'
+      ? '주문내역'
+      : activeStatus === 'payment_complete'
+        ? '결제 완료 내역'
+        : activeStatus === 'preparing'
+          ? '발송 준비중 내역'
+          : activeStatus === 'shipped'
+            ? '발송 완료 내역'
+            : '주문 취소 내역'
+
   const setQuickDate = (type: 'today' | '1day' | '1week' | '1month') => {
     const toStr = formatDate(new Date())
     let fromStr: string
@@ -2015,7 +2026,7 @@ export default function OrderStatus() {
 
       <div className={styles.tableSection}>
         <div className={styles.tableHeader}>
-          <h2 className={styles.tableTitle}>주문내역</h2>
+          <h2 className={styles.tableTitle}>{tableTitle}</h2>
           <div className={styles.tableActions}>
             <span className={styles.totalCount}>전체 {displayedOrders.length}건</span>
             <button
@@ -2026,7 +2037,7 @@ export default function OrderStatus() {
                   displayedOrders.some((o) => selectedIds.has(o.id))
                     ? displayedOrders.filter((o) => selectedIds.has(o.id))
                     : displayedOrders
-                downloadOrderExcel(toExport)
+                downloadOrderExcel(toExport, tableTitle)
               }}
             >
               엑셀 다운로드
