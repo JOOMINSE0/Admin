@@ -340,6 +340,9 @@ export default function OrderDetailModal({
 
   useEffect(() => {
     setMemos(detail?.adminMemos ?? [])
+  }, [detail?.adminMemos])
+
+  useEffect(() => {
     setEditingMemoId(null)
     setNewMemoContent('')
     setNewMemoInputError(false)
@@ -351,7 +354,7 @@ export default function OrderDetailModal({
     setPartialCancelConfirmOpen(false)
     setPartialCancelPendingRecords([])
     setShowAccumHistoryModal(false)
-  }, [detail?.orderNo, detail?.adminMemos, detail?.products])
+  }, [detail?.orderNo, detail?.products])
 
   const toggleSupplier = (name: string) => {
     setOpenSuppliers((prev) => {
