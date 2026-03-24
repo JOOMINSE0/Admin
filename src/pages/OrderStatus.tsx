@@ -1430,12 +1430,11 @@ export default function OrderStatus() {
     if (!shouldProceed) return
 
     const nextOrderStatus = STATUS_KEY_TO_ORDER_STATUS.preparing // '발송 준비중'
-    const ts = formatDateTimeSeoul()
     selectedRows.forEach((r) => {
       appendAdminMemo(
         r.orderNo,
         ADMIN_MEMO_AUTHOR,
-        `[${r.orderStatus}] → [${nextOrderStatus}] 변경 / ${ts}`
+        `[${r.orderStatus}] → [${nextOrderStatus}] 변경`
       )
     })
     setOrderStatusOverrides((prev) => {
@@ -1465,12 +1464,11 @@ export default function OrderStatus() {
     if (!shouldProceed) return
 
     const nextOrderStatus = STATUS_KEY_TO_ORDER_STATUS.shipped // '발송 완료'
-    const ts = formatDateTimeSeoul()
     selectedRows.forEach((r) => {
       appendAdminMemo(
         r.orderNo,
         ADMIN_MEMO_AUTHOR,
-        `[${r.orderStatus}] → [${nextOrderStatus}] 변경 / ${ts}`
+        `[${r.orderStatus}] → [${nextOrderStatus}] 변경`
       )
     })
     setOrderStatusOverrides((prev) => {
@@ -1492,7 +1490,7 @@ export default function OrderStatus() {
     appendAdminMemo(
       orderNo,
       ADMIN_MEMO_AUTHOR,
-      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.preparing}] 변경 / ${formatDateTimeSeoul()}`
+      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.preparing}] 변경`
     )
     setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: STATUS_KEY_TO_ORDER_STATUS.preparing }))
     setSelectedIds(new Set())
@@ -1506,7 +1504,7 @@ export default function OrderStatus() {
     appendAdminMemo(
       orderNo,
       ADMIN_MEMO_AUTHOR,
-      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.shipped}] 변경 / ${formatDateTimeSeoul()}`
+      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.shipped}] 변경`
     )
     setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: STATUS_KEY_TO_ORDER_STATUS.shipped }))
     setSelectedIds(new Set())
@@ -1520,7 +1518,7 @@ export default function OrderStatus() {
     appendAdminMemo(
       orderNo,
       ADMIN_MEMO_AUTHOR,
-      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.payment_complete}] 변경 / ${formatDateTimeSeoul()}`
+      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.payment_complete}] 변경`
     )
     setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: STATUS_KEY_TO_ORDER_STATUS.payment_complete }))
     setSelectedIds(new Set())
@@ -2244,7 +2242,7 @@ export default function OrderStatus() {
           appendAdminMemo(
             orderNo,
             ADMIN_MEMO_AUTHOR,
-            `[주문 취소] 진행 / ${formatDateTimeSeoul()}`
+            `[주문 취소] 진행`
           )
           setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: '주문 취소' }))
           setDetailOpen(null)
@@ -2253,7 +2251,7 @@ export default function OrderStatus() {
           appendAdminMemo(
             orderNo,
             ADMIN_MEMO_AUTHOR,
-            `[주문취소요청] 진행 / ${formatDateTimeSeoul()}`
+            `[주문취소요청] 진행`
           )
           window.alert(`주문취소 요청이 접수되었습니다. (${orderNo})`)
         }}
@@ -2261,7 +2259,7 @@ export default function OrderStatus() {
         onShipComplete={handleShipCompleteByOrderNo}
         onRestorePaymentComplete={handleRestorePaymentCompleteByOrderNo}
         onPartialCancelSaved={(orderNo) => {
-          appendAdminMemo(orderNo, ADMIN_MEMO_AUTHOR, `[부분 취소] 진행 / ${formatDateTimeSeoul()}`)
+          appendAdminMemo(orderNo, ADMIN_MEMO_AUTHOR, `[부분 취소] 진행`)
         }}
       />
     </div>
