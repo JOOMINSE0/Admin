@@ -374,7 +374,7 @@ const SHIPPED_ORDER_NO = 'P01041161391'
 // JSON 기반 다중 공급사 주문 (상세 팝업 데이터)
 const MULTI_SUPPLIER_ORDER_NO = 'PO1041161391'
 /** 상세·목록 주문일시 (API 연동 시 동일 JSON의 orderDate) */
-const MULTI_SUPPLIER_ORDER_DATE = '2026-03-23 13:59:17'
+const MULTI_SUPPLIER_ORDER_DATE = '2026-03-24 13:59:17'
 
 /** PO1041161391 SAP (제=대웅제약, 바=대웅바이오). 라인 끝 (공장)/(지역)은 상세 모달에서 배지로 표시 */
 const PO1041161391_SAP_BY_SUPPLIER: Record<string, string> = {
@@ -1513,6 +1513,16 @@ export default function OrderStatus() {
     window.alert('발송 완료 처리가 완료되었습니다.')
   }
 
+  /** 발송완료 탭: 거래명세표 일괄출력 (선택 건 기준) */
+  const handleBulkTransactionStatementPrint = () => {
+    const selectedRows = displayedOrders.filter((o) => selectedIds.has(o.id))
+    if (selectedRows.length === 0) {
+      window.alert('출력할 주문을 선택해주세요.')
+      return
+    }
+    window.alert(`거래명세표 일괄출력: ${selectedRows.length}건`)
+  }
+
   const matchesSearch = (row: OrderRow, k: string): boolean => {
     const rAny = row as any
     if (searchType2 === '약국명') return String(row.pharmacyName ?? '-').toLowerCase().includes(k)
@@ -2061,13 +2071,22 @@ export default function OrderStatus() {
               </button>
             )}
             {activeStatus === 'shipped' && (
-              <button
-                type="button"
-                className={styles.btnShipPrepare}
-                onClick={handleShipPrepare}
-              >
-                발송 준비중 처리
-              </button>
+              <>
+                <button
+                  type="button"
+                  className={styles.btnShipPrepare}
+                  onClick={handleShipPrepare}
+                >
+                  발송 준비중 처리
+                </button>
+                <button
+                  type="button"
+                  className={styles.btnShipPrepare}
+                  onClick={handleBulkTransactionStatementPrint}
+                >
+                  거래명세표 일괄출력
+                </button>
+              </>
             )}
           </div>
         </div>
