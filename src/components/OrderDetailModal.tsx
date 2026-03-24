@@ -93,7 +93,7 @@ function mapSapLastParenToOrderStatus(raw: string): string | null {
   if (/준비/.test(raw) && /출하/.test(raw)) return '발송 준비중'
 
   // 취소/부분취소 등의 키워드(데이터 포맷이 바뀌어도 최소한의 표시 유지 목적)
-  if (/부분/.test(raw) && /취소/.test(raw)) return '부분 취소'
+  if (/부분/.test(raw) && /취소/.test(raw)) return '부분취소'
   if (/취소/.test(raw)) return '주문 취소'
 
   if (/결제\s*완료/.test(raw) || /결제완료/.test(raw)) return '결제완료'
@@ -130,7 +130,7 @@ export function getSupplierOrderStatusFromSap(args: {
   // 완료가 있으면 완료 우선, 그 외에는 준비중/그 다음 순
   if (mapped.includes('발송 완료')) return '발송 완료'
   if (mapped.includes('발송 준비중')) return '발송 준비중'
-  if (mapped.includes('부분 취소')) return '부분 취소'
+  if (mapped.includes('부분취소')) return '부분취소'
   if (mapped.includes('주문 취소')) return '주문 취소'
   if (mapped.includes('결제완료')) return '결제완료'
   if (mapped.includes('주문 완료')) return '주문 완료'
@@ -279,7 +279,7 @@ type OrderDetailModalProps = {
   currentUserName?: string
   /** 주문 취소 버튼 클릭 시 호출 (주문번호 전달). 호출 후 목록/탭 반영을 위해 모달을 닫음 */
   onOrderCancel?: (orderNo: string) => void
-  /** SAP에 납품번호가 있을 때 노출되는 주문취소요청 버튼 콜백 */
+  /** SAP에 납품번호가 있을 때 노출되는 주문 취소 요청 버튼 콜백 */
   onOrderCancelRequest?: (orderNo: string) => void
   /** 발송 준비중 처리 버튼 콜백 (주문번호 전달) */
   onShipPrepare?: (orderNo: string) => void
@@ -619,7 +619,7 @@ export default function OrderDetailModal({
                   }
                 }}
               >
-                주문취소요청
+                주문 취소 요청
               </button>
             )}
             {statusActionButton && (
