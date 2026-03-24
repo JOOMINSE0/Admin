@@ -1513,6 +1513,20 @@ export default function OrderStatus() {
     window.alert('발송 완료 처리가 완료되었습니다.')
   }
 
+  const handleRestorePaymentCompleteByOrderNo = (orderNo: string) => {
+    const base = mockOrders.find((o) => o.orderNo === orderNo)
+    const from =
+      orderStatusOverrides[orderNo] ?? base?.orderStatus ?? STATUS_KEY_TO_ORDER_STATUS.preparing
+    appendAdminMemo(
+      orderNo,
+      ADMIN_MEMO_AUTHOR,
+      `[${from}] → [${STATUS_KEY_TO_ORDER_STATUS.payment_complete}] 변경 / ${formatDateTimeSeoul()}`
+    )
+    setOrderStatusOverrides((prev) => ({ ...prev, [orderNo]: STATUS_KEY_TO_ORDER_STATUS.payment_complete }))
+    setSelectedIds(new Set())
+    window.alert('결제 완료 복원이 완료되었습니다.')
+  }
+
   /** 발송완료 탭: 거래명세표 일괄출력 (선택 건 기준) */
   const handleBulkTransactionStatementPrint = () => {
     const selectedRows = displayedOrders.filter((o) => selectedIds.has(o.id))
@@ -2245,6 +2259,7 @@ export default function OrderStatus() {
         }}
         onShipPrepare={handleShipPrepareByOrderNo}
         onShipComplete={handleShipCompleteByOrderNo}
+        onRestorePaymentComplete={handleRestorePaymentCompleteByOrderNo}
         onPartialCancelSaved={(orderNo) => {
           appendAdminMemo(orderNo, ADMIN_MEMO_AUTHOR, `[부분 취소] 진행 / ${formatDateTimeSeoul()}`)
         }}

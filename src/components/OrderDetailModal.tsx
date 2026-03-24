@@ -285,6 +285,8 @@ type OrderDetailModalProps = {
   onShipPrepare?: (orderNo: string) => void
   /** 발송완료 처리 버튼 콜백 (주문번호 전달) */
   onShipComplete?: (orderNo: string) => void
+  /** 발송 준비중 상태에서 결제완료로 복원 */
+  onRestorePaymentComplete?: (orderNo: string) => void
   /** 부분취소 저장 확정 시 (관리자 메모 자동 기록 등) */
   onPartialCancelSaved?: (orderNo: string) => void
 }
@@ -321,6 +323,7 @@ export default function OrderDetailModal({
   onOrderCancelRequest,
   onShipPrepare,
   onShipComplete,
+  onRestorePaymentComplete,
   onPartialCancelSaved,
 }: OrderDetailModalProps) {
   const [openSuppliers, setOpenSuppliers] = useState<Set<string>>(new Set())
@@ -1258,6 +1261,26 @@ export default function OrderDetailModal({
                   )
                 })()}
               </div>
+            </div>
+          )}
+
+          {status === '발송 준비중' && (
+            <div className={styles.bottomRestoreActionWrap}>
+              <button
+                type="button"
+                className={styles.btnShip}
+                onClick={() => {
+                  if (!detail?.orderNo) return
+                  const shouldProceed = window.confirm(
+                    '발송 준비중 상태를 결제 완료로 복원하시겠습니까?'
+                  )
+                  if (!shouldProceed) return
+                  onRestorePaymentComplete?.(detail.orderNo)
+                  onClose()
+                }}
+              >
+                결제 완료 복원
+              </button>
             </div>
           )}
 
