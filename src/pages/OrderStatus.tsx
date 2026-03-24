@@ -365,7 +365,7 @@ const ALL_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: '발송 준비중', label: '발송 준비중' },
   { value: '발송 완료', label: '발송 완료' },
   { value: '주문 취소', label: '주문 취소' },
-  { value: '부분 취소', label: '부분 취소' },
+  { value: '부분취소', label: '부분취소' },
 ]
 
 // 발송완료 하드코딩 주문 (상세 팝업에서 이미지 기준 데이터 표시)
@@ -374,7 +374,7 @@ const SHIPPED_ORDER_NO = 'P01041161391'
 // JSON 기반 다중 공급사 주문 (상세 팝업 데이터)
 const MULTI_SUPPLIER_ORDER_NO = 'PO1041161391'
 /** 상세·목록 주문일시 (API 연동 시 동일 JSON의 orderDate) */
-const MULTI_SUPPLIER_ORDER_DATE = '2026-03-24 13:59:17'
+const MULTI_SUPPLIER_ORDER_DATE = '2026-03-25 13:59:17'
 
 /** PO1041161391 SAP (제=대웅제약, 바=대웅바이오). 라인 끝 (공장)/(지역)은 상세 모달에서 배지로 표시 */
 const PO1041161391_SAP_BY_SUPPLIER: Record<string, string> = {
@@ -518,7 +518,8 @@ const mockOrders = [
       paymentAmount: 15000 + i * 1000,
       finalAmount: 15000 + i * 1000,
       paymentMethod: '세메세데',
-      orderDateTime: '2026-03-16 10:00:00',
+      orderDateTime:
+        i === 9 ? '2026-03-25 10:00:00' : '2026-03-16 10:00:00',
       orderStatus: statuses[i],
       memo: 'N',
       memberId: `user${i + 2}`,
@@ -2251,7 +2252,7 @@ export default function OrderStatus() {
           appendAdminMemo(
             orderNo,
             ADMIN_MEMO_AUTHOR,
-            `[주문취소요청] 진행`
+            `[주문 취소 요청] 진행`
           )
           window.alert(`주문취소 요청이 접수되었습니다. (${orderNo})`)
         }}
@@ -2259,7 +2260,7 @@ export default function OrderStatus() {
         onShipComplete={handleShipCompleteByOrderNo}
         onRestorePaymentComplete={handleRestorePaymentCompleteByOrderNo}
         onPartialCancelSaved={(orderNo) => {
-          appendAdminMemo(orderNo, ADMIN_MEMO_AUTHOR, `[부분 취소] 진행`)
+          appendAdminMemo(orderNo, ADMIN_MEMO_AUTHOR, `[부분취소] 진행`)
         }}
       />
     </div>
